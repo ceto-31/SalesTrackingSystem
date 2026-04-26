@@ -4,6 +4,25 @@
 
 declare(strict_types=1);
 
+// ── CORS ─────────────────────────────────────────────────────────────────────
+// Send CORS headers from PHP (more reliable than .htaccess + PassEnv on Railway).
+$allowedOrigin = getenv('ALLOWED_ORIGIN') ?: ($_ENV['ALLOWED_ORIGIN'] ?? '');
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if ($allowedOrigin !== '' && $requestOrigin === $allowedOrigin) {
+    header("Access-Control-Allow-Origin: {$allowedOrigin}");
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Vary: Origin');
+}
+
+// Handle CORS preflight (OPTIONS) before any auth logic runs
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 /**
  * Start or resume the session (called once per request).
  */
