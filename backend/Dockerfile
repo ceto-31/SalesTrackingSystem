@@ -24,3 +24,8 @@ RUN mkdir -p /var/www/html/uploads/products \
     && chmod -R 755 /var/www/html/uploads
 
 EXPOSE 80
+
+# Railway injects a $PORT env var — rewrite Apache's port config at container start
+CMD sed -i "s/Listen 80/Listen ${PORT:-80}/" /etc/apache2/ports.conf \
+    && sed -i "s/*:80/*:${PORT:-80}/" /etc/apache2/sites-available/000-default.conf \
+    && apache2-foreground
