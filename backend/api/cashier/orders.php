@@ -31,12 +31,13 @@ if ($method === 'GET') {
              o.id, o.customer_name, o.total_amount, o.status, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
-                     'item_id',    oi.id,
-                     'product_id', oi.product_id,
-                     'name',       p.name,
-                     'variety',    p.variety,
-                     'quantity',   oi.quantity,
-                     'unit_price', oi.unit_price
+                     'item_id',      oi.id,
+                     'product_id',   oi.product_id,
+                     'name',         p.name,
+                     'variety',      p.variety,
+                     'quantity',     oi.quantity,
+                     'unit_price',   oi.unit_price,
+                     'is_cancelled', oi.is_cancelled
                  )
              ) AS items
          FROM orders o
@@ -49,10 +50,20 @@ if ($method === 'GET') {
     $stmt->execute([$cashier['id']]);
 
     $orders = $stmt->fetchAll();
-    // Decode the JSON_ARRAYAGG string into a real array
     foreach ($orders as &$order) {
-        $order['items']        = json_decode($order['items'], true);
-        $order['total_amount'] = (float)$order['total_amount'];
+        $items = json_decode($order['items'], true) ?: [];
+        $effectiveTotal = 0.0;
+        foreach ($items as &$it) {
+            $it['quantity']     = (int)$it['quantity'];
+            $it['unit_price']   = (float)$it['unit_price'];
+            $it['is_cancelled'] = (int)($it['is_cancelled'] ?? 0);
+            if (!$it['is_cancelled']) {
+                $effectiveTotal += $it['unit_price'] * $it['quantity'];
+            }
+        }
+        unset($it);
+        $order['items']        = $items;
+        $order['total_amount'] = $effectiveTotal;
     }
 
     echo json_encode($orders);
@@ -144,8 +155,36 @@ if ($method === 'POST') {
         exit;
     }
 
+    // Build the response items array (enriched with product names) for the
+    // cashier-side receipt modal so it doesn't need an extra round trip.
+    $namePlaceholders = implode(',', array_fill(0, count($productIds), '?'));
+    $nstmt = $db->prepare("SELECT id, name, variety FROM products WHERE id IN ($namePlaceholders)");
+    $nstmt->execute($productIds);
+    $nameMap = [];
+    foreach ($nstmt->fetchAll() as $row) {
+        $nameMap[(int)$row['id']] = ['name' => $row['name'], 'variety' => $row['variety']];
+    }
+    $responseItems = [];
+    foreach ($validatedItems as $vi) {
+        $responseItems[] = [
+            'product_id' => $vi['product_id'],
+            'name'       => $nameMap[$vi['product_id']]['name']    ?? '',
+            'variety'    => $nameMap[$vi['product_id']]['variety'] ?? '',
+            'quantity'   => $vi['quantity'],
+            'unit_price' => $vi['unit_price'],
+        ];
+    }
+
     http_response_code(201);
-    echo json_encode(['id' => $orderId, 'total_amount' => $total, 'status' => $status]);
+    echo json_encode([
+        'id'            => $orderId,
+        'customer_name' => $customerName,
+        'cashier_name'  => $cashier['username'],
+        'total_amount'  => $total,
+        'status'        => $status,
+        'created_at'    => date('c'),
+        'items'         => $responseItems,
+    ]);
     exit;
 }
 

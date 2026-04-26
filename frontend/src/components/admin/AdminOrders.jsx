@@ -1,8 +1,14 @@
 // src/components/admin/AdminOrders.jsx
-// Admin kitchen workflow: see Preparing orders, mark them Completed.
+// Admin kitchen workflow: see Preparing orders, mark them Completed,
+// cancel individual items.
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { getAdminOrders, completeOrder, reopenOrder } from '../../services/api'
+import {
+  getAdminOrders,
+  completeOrder,
+  reopenOrder,
+  cancelOrderItem,
+} from '../../services/api'
 
 const POLL_MS = 15000
 
@@ -17,7 +23,19 @@ function fmtTime(iso) {
   })
 }
 
-function OrderCard({ order, onAction, actionLabel, actionIcon, actionClass }) {
+function OrderCard({
+  order,
+  canEdit,                   // true on preparing tab
+  onAction, actionLabel, actionIcon, actionClass, actionDisabled,
+  onToggleCancel,            // (itemId, nextCancelled) => void
+  busyItemId,
+}) {
+  const items = order.items ?? []
+  const liveTotal = items.reduce(
+    (s, it) => s + (it.is_cancelled ? 0 : it.unit_price * it.quantity),
+    0,
+  )
+
   return (
     <div className="card border-0 shadow-sm">
       <div className="card-body">
@@ -32,7 +50,7 @@ function OrderCard({ order, onAction, actionLabel, actionIcon, actionClass }) {
           </span>
         </div>
 
-        <div className="small text-muted mb-2">
+        <div className="small text-muted mb-3">
           <i className="bi bi-person me-1" />
           {order.customer_name}
           <span className="mx-2">·</span>
@@ -40,67 +58,109 @@ function OrderCard({ order, onAction, actionLabel, actionIcon, actionClass }) {
           Cashier: {order.cashier_name}
         </div>
 
-        <div className="table-responsive">
-          <table className="table table-sm mb-2">
-            <tbody>
-              {(order.items ?? []).map((item) => (
-                <tr key={item.item_id}>
-                  <td className="ps-0 border-0">{item.name}</td>
-                  <td className="text-muted border-0 small d-none d-sm-table-cell">{item.variety}</td>
-                  <td className="text-center border-0">×{item.quantity}</td>
-                  <td className="text-end border-0 pe-0">
-                    ₱{fmtMoney(item.unit_price * item.quantity)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="fw-bold border-top">
-                <td colSpan={3} className="ps-0">Total</td>
-                <td className="text-end pe-0 text-primary">₱{fmtMoney(order.total_amount)}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <ul className="list-unstyled mb-3 d-flex flex-column gap-2">
+          {items.map((item) => {
+            const lineTotal = item.unit_price * item.quantity
+            const cancelled = !!item.is_cancelled
+            return (
+              <li
+                key={item.item_id}
+                className={`d-flex align-items-center gap-2 px-2 py-2 rounded ${
+                  cancelled ? 'bg-light opacity-75' : ''
+                }`}
+                style={{
+                  textDecoration: cancelled ? 'line-through' : 'none',
+                  background: cancelled ? undefined : '#fff7fa',
+                }}
+              >
+                <div className="flex-grow-1 min-w-0">
+                  <div className="fw-bold text-truncate">
+                    {item.name}
+                    {cancelled && (
+                      <span className="badge bg-danger ms-2 align-middle">Cancelled</span>
+                    )}
+                  </div>
+                  {item.variety && (
+                    <div className="small text-muted text-truncate">{item.variety}</div>
+                  )}
+                </div>
+
+                <div className="text-end" style={{ minWidth: 110 }}>
+                  <div className="small text-muted">
+                    ₱{fmtMoney(item.unit_price)} × {item.quantity}
+                  </div>
+                  <div className="fw-bold text-primary">
+                    ₱{fmtMoney(lineTotal)}
+                  </div>
+                </div>
+
+                {canEdit && (
+                  <button
+                    className={`btn btn-sm ${
+                      cancelled ? 'btn-outline-secondary' : 'btn-outline-danger'
+                    }`}
+                    title={cancelled ? 'Restore item' : 'Cancel item'}
+                    disabled={busyItemId === item.item_id}
+                    onClick={() => onToggleCancel(item.item_id, !cancelled)}
+                  >
+                    <i className={`bi ${cancelled ? 'bi-arrow-counterclockwise' : 'bi-x-lg'}`} />
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="d-flex justify-content-between align-items-center border-top pt-2 mb-3">
+          <span className="fw-bold">Total</span>
+          <span className="fw-bold fs-5 text-primary">₱{fmtMoney(liveTotal)}</span>
         </div>
 
         <button
           className={`btn btn-sm ${actionClass} w-100 w-sm-auto`}
           onClick={() => onAction(order.id)}
+          disabled={actionDisabled}
         >
           <i className={`bi ${actionIcon} me-1`} />
           {actionLabel}
         </button>
+        {actionDisabled && canEdit && (
+          <div className="small text-muted mt-2">
+            All items are cancelled — restore an item to complete this order.
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
 export default function AdminOrders() {
-  const [tab,     setTab]     = useState('preparing')   // 'preparing' | 'completed'
-  const [orders,  setOrders]  = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState('')
-  const [acting,  setActing]  = useState(0)
+  const [tab,         setTab]         = useState('preparing')   // 'preparing' | 'completed'
+  const [orders,      setOrders]      = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [error,       setError]       = useState('')
+  const [acting,      setActing]      = useState(0)
+  const [busyItemId,  setBusyItemId]  = useState(0)
 
   const fetchOrders = useCallback(async () => {
     setError('')
     try {
       const { data } = await getAdminOrders(tab)
       setOrders(data)
-    } catch {
-      setError('Failed to load orders.')
+    } catch (err) {
+      const status = err?.response?.status
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      setError(`Failed to load orders. [${status ?? 'network'}] ${detail}`)
     } finally {
       setLoading(false)
     }
   }, [tab])
 
-  // Initial fetch on tab change
   useEffect(() => {
     setLoading(true)
     fetchOrders()
   }, [fetchOrders])
 
-  // Poll while mounted
   useEffect(() => {
     const t = setInterval(fetchOrders, POLL_MS)
     return () => clearInterval(t)
@@ -127,6 +187,35 @@ export default function AdminOrders() {
       alert('Failed to reopen.')
     } finally {
       setActing(0)
+    }
+  }
+
+  const handleToggleCancel = async (orderId, itemId, nextCancelled) => {
+    setBusyItemId(itemId)
+    // Optimistic update
+    setOrders((prev) => prev.map((o) =>
+      o.id !== orderId ? o : {
+        ...o,
+        items: (o.items ?? []).map((it) =>
+          it.item_id === itemId ? { ...it, is_cancelled: nextCancelled ? 1 : 0 } : it
+        ),
+      }
+    ))
+    try {
+      await cancelOrderItem(orderId, itemId, nextCancelled)
+    } catch {
+      alert('Failed to update item. Reverting.')
+      // Revert
+      setOrders((prev) => prev.map((o) =>
+        o.id !== orderId ? o : {
+          ...o,
+          items: (o.items ?? []).map((it) =>
+            it.item_id === itemId ? { ...it, is_cancelled: nextCancelled ? 0 : 1 } : it
+          ),
+        }
+      ))
+    } finally {
+      setBusyItemId(0)
     }
   }
 
@@ -174,27 +263,38 @@ export default function AdminOrders() {
         </div>
       ) : (
         <div className="d-flex flex-column gap-3">
-          {orders.map((o) =>
-            tab === 'preparing' ? (
+          {orders.map((o) => {
+            const allCancelled =
+              (o.items ?? []).length > 0 &&
+              (o.items ?? []).every((it) => it.is_cancelled)
+            return tab === 'preparing' ? (
               <OrderCard
                 key={o.id}
                 order={o}
+                canEdit
                 onAction={handleComplete}
                 actionLabel={acting === o.id ? 'Completing…' : 'Mark Completed'}
                 actionIcon="bi-check2-square"
                 actionClass="btn-success"
+                actionDisabled={allCancelled || acting === o.id}
+                onToggleCancel={(itemId, next) => handleToggleCancel(o.id, itemId, next)}
+                busyItemId={busyItemId}
               />
             ) : (
               <OrderCard
                 key={o.id}
                 order={o}
+                canEdit={false}
                 onAction={handleReopen}
                 actionLabel={acting === o.id ? 'Reopening…' : 'Reopen (back to Preparing)'}
                 actionIcon="bi-arrow-counterclockwise"
                 actionClass="btn-outline-secondary"
+                actionDisabled={acting === o.id}
+                onToggleCancel={() => {}}
+                busyItemId={0}
               />
             )
-          )}
+          })}
         </div>
       )}
     </div>

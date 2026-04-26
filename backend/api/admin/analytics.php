@@ -73,12 +73,15 @@ $db = getDB();
 
 $dayStmt = $db->prepare(
     "SELECT
-         DATE(created_at)                            AS day,
-         COALESCE(SUM(CASE WHEN status='paid' THEN total_amount ELSE 0 END), 0) AS revenue,
-         COUNT(*)                                    AS order_count
-     FROM orders
-    WHERE DATE(created_at) BETWEEN ? AND ?
-    GROUP BY DATE(created_at)"
+         DATE(o.created_at)                              AS day,
+         COALESCE(SUM(oi.quantity * oi.unit_price), 0)   AS revenue,
+         COUNT(DISTINCT o.id)                            AS order_count
+     FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+    WHERE DATE(o.created_at) BETWEEN ? AND ?
+      AND o.status IN ('paid', 'completed')
+      AND oi.is_cancelled = 0
+    GROUP BY DATE(o.created_at)"
 );
 $dayStmt->execute([$startStr, $endStr]);
 $dayRows = $dayStmt->fetchAll();
@@ -129,6 +132,8 @@ $topStmt = $db->prepare(
      JOIN orders   o ON o.id  = oi.order_id
      JOIN products p ON p.id  = oi.product_id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
+      AND o.status IN ('paid', 'completed')
+      AND oi.is_cancelled = 0
     GROUP BY p.id, p.name, p.variety
     ORDER BY total_sold DESC
     LIMIT 10"

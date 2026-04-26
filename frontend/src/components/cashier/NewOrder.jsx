@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { getProducts, createOrder } from '../../services/api'
+import ReceiptModal from './ReceiptModal'
 
 export default function NewOrder() {
   const [products,      setProducts]      = useState([])
@@ -13,6 +14,7 @@ export default function NewOrder() {
   const [submitting,    setSubmitting]    = useState(false)
   const [successMsg,    setSuccessMsg]    = useState('')
   const [filterVariety, setFilterVariety] = useState('All')
+  const [receiptOrder,  setReceiptOrder]  = useState(null)
 
   useEffect(() => {
     getProducts()
@@ -75,11 +77,12 @@ export default function NewOrder() {
     setSubmitting(true)
     setError('')
     try {
-      await createOrder(
+      const { data } = await createOrder(
         customerName,
         'preparing',
         cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity }))
       )
+      setReceiptOrder(data)
       setCart([])
       setCustomerName('')
       setSuccessMsg('Order sent to kitchen!')
@@ -246,6 +249,12 @@ export default function NewOrder() {
           </div>
         </div>
       </div>
+      {receiptOrder && (
+        <ReceiptModal
+          order={receiptOrder}
+          onClose={() => setReceiptOrder(null)}
+        />
+      )}
     </div>
   )
 }

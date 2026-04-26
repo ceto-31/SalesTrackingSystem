@@ -70,6 +70,12 @@ export const completeOrder = (id) =>
 export const reopenOrder = (id) =>
   api.put(`/admin/orders.php?id=${id}`, { status: 'preparing' })
 
+export const cancelOrderItem = (orderId, itemId, cancelled) =>
+  api.put(
+    `/admin/orders.php?id=${orderId}&item_id=${itemId}`,
+    { is_cancelled: cancelled ? 1 : 0 }
+  )
+
 // ── Shared — Categories ───────────────────────────────────────────────────────
 
 export const getCategories = () =>
