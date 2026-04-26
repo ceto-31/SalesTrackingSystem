@@ -29,9 +29,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 function startSession(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        // SameSite=Lax works because the frontend goes through Vercel's
+        // /api proxy, so all requests are same-site (first-party). This is
+        // what iOS Safari (and Brave on iOS) trust by default.
         session_start([
             'cookie_httponly' => true,
-            'cookie_samesite' => 'None',
+            'cookie_samesite' => 'Lax',
             'cookie_secure'   => true,
             'use_strict_mode' => true,
         ]);
