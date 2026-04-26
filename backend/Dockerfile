@@ -3,9 +3,14 @@ FROM php:8.2-apache
 # Install PDO MySQL extension
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Ensure only one MPM is loaded (mpm_prefork), then enable required modules
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
-    && a2enmod mpm_prefork rewrite headers
+# Remove mpm_event/mpm_worker symlinks directly — a2dismod is unreliable during
+# Docker build because Apache is not running. php:8.2-apache already includes
+# mpm_prefork for mod_php; we only need the conflicting MPM links gone.
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.conf \
+          /etc/apache2/mods-enabled/mpm_event.load \
+          /etc/apache2/mods-enabled/mpm_worker.conf \
+          /etc/apache2/mods-enabled/mpm_worker.load \
+    && a2enmod rewrite headers
 
 # Replace default Apache vhost with our config (enables AllowOverride + PassEnv)
 COPY backend/apache.conf /etc/apache2/sites-available/000-default.conf
