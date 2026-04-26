@@ -131,8 +131,10 @@ export default function AdminAnalytics() {
     try {
       const { data: res } = await getAnalytics(refDate, mode)
       setData(res)
-    } catch {
-      setError('Failed to load analytics.')
+    } catch (err) {
+      const status = err?.response?.status
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      setError(`Failed to load analytics. [${status ?? 'network'}] ${detail}`)
     } finally {
       setLoading(false)
     }
