@@ -12,11 +12,11 @@ function getDB(): PDO
         $env = static fn(string $k): string =>
             (string)(getenv($k) ?: ($_ENV[$k] ?? $_SERVER[$k] ?? ''));
 
-        $host    = $env('DB_HOST')   ?: $env('MYSQLHOST')     ?: 'localhost';
-        $port    = $env('DB_PORT')   ?: $env('MYSQLPORT')     ?: '3306';
-        $dbname  = $env('DB_NAME')   ?: $env('MYSQLDATABASE') ?: 'order_tracking_db';
-        $user    = $env('DB_USER')   ?: $env('MYSQLUSER')     ?: 'root';
-        $pass    = $env('DB_PASS')   ?: $env('MYSQLPASSWORD') ?: '';
+        $host    = $env('DB_HOST')   ?: $env('MYSQLHOST')     ?: $env('MYSQL_HOST')     ?: 'localhost';
+        $port    = $env('DB_PORT')   ?: $env('MYSQLPORT')     ?: $env('MYSQL_PORT')     ?: '3306';
+        $dbname  = $env('DB_NAME')   ?: $env('MYSQLDATABASE') ?: $env('MYSQL_DATABASE') ?: 'railway';
+        $user    = $env('DB_USER')   ?: $env('MYSQLUSER')     ?: $env('MYSQL_USER')     ?: 'root';
+        $pass    = $env('DB_PASS')   ?: $env('MYSQLPASSWORD') ?: $env('MYSQL_PASSWORD') ?: '';
 
         $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
