@@ -100,12 +100,12 @@ export default function AdminProducts() {
                     </td>
                     <td className="fw-semibold">
                       {p.name}
-                      <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 ms-2 d-md-none">
+                      <span className="badge bg-secondary bg-opacity-25 text-dark border border-secondary border-opacity-25 ms-2 d-md-none">
                         {p.variety}
                       </span>
                     </td>
                     <td className="d-none d-md-table-cell">
-                      <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                      <span className="badge bg-secondary bg-opacity-25 text-dark border border-secondary border-opacity-25">
                         {p.variety}
                       </span>
                     </td>

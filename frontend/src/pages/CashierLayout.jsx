@@ -65,7 +65,7 @@ export default function CashierLayout() {
               <span className="text-muted small">
                 <i className="bi bi-person-circle me-1" />
                 {user?.username}
-                <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 ms-2">Cashier</span>
+                <span className="badge bg-secondary bg-opacity-25 text-dark border border-secondary border-opacity-25 ms-2">Cashier</span>
               </span>
               <button
                 className="btn btn-sm btn-outline-danger"
