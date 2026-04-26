@@ -31,13 +31,13 @@ if ($method === 'GET') {
              o.id, o.customer_name, o.total_amount, o.status, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
-                     'item_id',      oi.id,
-                     'product_id',   oi.product_id,
-                     'name',         p.name,
-                     'variety',      p.variety,
-                     'quantity',     oi.quantity,
-                     'unit_price',   oi.unit_price,
-                     'is_cancelled', oi.is_cancelled
+                     'item_id',            oi.id,
+                     'product_id',         oi.product_id,
+                     'name',               p.name,
+                     'variety',            p.variety,
+                     'quantity',           oi.quantity,
+                     'cancelled_quantity', oi.cancelled_quantity,
+                     'unit_price',         oi.unit_price
                  )
              ) AS items
          FROM orders o
@@ -54,12 +54,11 @@ if ($method === 'GET') {
         $items = json_decode($order['items'], true) ?: [];
         $effectiveTotal = 0.0;
         foreach ($items as &$it) {
-            $it['quantity']     = (int)$it['quantity'];
-            $it['unit_price']   = (float)$it['unit_price'];
-            $it['is_cancelled'] = (int)($it['is_cancelled'] ?? 0);
-            if (!$it['is_cancelled']) {
-                $effectiveTotal += $it['unit_price'] * $it['quantity'];
-            }
+            $it['quantity']           = (int)$it['quantity'];
+            $it['cancelled_quantity'] = (int)($it['cancelled_quantity'] ?? 0);
+            $it['unit_price']         = (float)$it['unit_price'];
+            $active = max(0, $it['quantity'] - $it['cancelled_quantity']);
+            $effectiveTotal += $it['unit_price'] * $active;
         }
         unset($it);
         $order['items']        = $items;

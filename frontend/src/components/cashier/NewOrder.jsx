@@ -70,6 +70,10 @@ export default function NewOrder() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (customerName.trim() === '') {
+      setError('Customer name is required.')
+      return
+    }
     if (cart.length === 0) {
       alert('Add at least one product to the order.')
       return
@@ -178,15 +182,25 @@ export default function NewOrder() {
             {error && <div className="alert alert-danger py-2">{error}</div>}
 
             <div className="mb-3">
-              <label className="form-label fw-semibold small">Customer Name</label>
+              <label className="form-label fw-semibold small">
+                Customer Name <span className="text-danger">*</span>
+              </label>
               <input
                 type="text"
-                className="form-control"
-                placeholder="Enter customer name"
+                className={`form-control ${
+                  customerName.trim() === '' ? 'border-danger' : ''
+                }`}
+                placeholder="Required — enter customer name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 required
+                aria-required="true"
               />
+              {customerName.trim() === '' && (
+                <div className="form-text text-danger small">
+                  Customer name is required before sending the order.
+                </div>
+              )}
             </div>
 
             {/* Cart items */}

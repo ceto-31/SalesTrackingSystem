@@ -1,13 +1,13 @@
 // src/components/admin/AdminOrders.jsx
-// Admin kitchen workflow: see Preparing orders, mark them Completed,
-// cancel individual items.
+// Admin kitchen workflow: Preparing / Completed / Cancelled tabs.
+// Admin can cancel/restore individual quantities of a line item.
 
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   getAdminOrders,
   completeOrder,
   reopenOrder,
-  cancelOrderItem,
+  adjustOrderItemCancel,
 } from '../../services/api'
 
 const POLL_MS = 15000
@@ -27,14 +27,15 @@ function OrderCard({
   order,
   canEdit,                   // true on preparing tab
   onAction, actionLabel, actionIcon, actionClass, actionDisabled,
-  onToggleCancel,            // (itemId, nextCancelled) => void
+  onAdjust,                  // (itemId, delta) => void
   busyItemId,
+  fullyCancelled,
 }) {
   const items = order.items ?? []
-  const liveTotal = items.reduce(
-    (s, it) => s + (it.is_cancelled ? 0 : it.unit_price * it.quantity),
-    0,
-  )
+  const liveTotal = items.reduce((s, it) => {
+    const active = Math.max(0, it.quantity - (it.cancelled_quantity ?? 0))
+    return s + active * it.unit_price
+  }, 0)
 
   return (
     <div className="card border-0 shadow-sm">
@@ -44,10 +45,17 @@ function OrderCard({
             <span className="fw-bold">#{order.id}</span>
             <span className="ms-2 text-muted small">{fmtTime(order.created_at)}</span>
           </div>
-          <span className={`badge ${order.status === 'preparing' ? 'bg-warning text-dark' : 'bg-success'}`}>
-            <i className={`bi ${order.status === 'preparing' ? 'bi-fire' : 'bi-check-circle'} me-1`} />
-            {order.status === 'preparing' ? 'Preparing' : 'Completed'}
-          </span>
+          {fullyCancelled ? (
+            <span className="badge bg-danger">
+              <i className="bi bi-x-octagon me-1" />
+              Cancelled
+            </span>
+          ) : (
+            <span className={`badge ${order.status === 'preparing' ? 'bg-warning text-dark' : 'bg-success'}`}>
+              <i className={`bi ${order.status === 'preparing' ? 'bi-fire' : 'bi-check-circle'} me-1`} />
+              {order.status === 'preparing' ? 'Preparing' : 'Completed'}
+            </span>
+          )}
         </div>
 
         <div className="small text-muted mb-3">
@@ -60,24 +68,28 @@ function OrderCard({
 
         <ul className="list-unstyled mb-3 d-flex flex-column gap-2">
           {items.map((item) => {
-            const lineTotal = item.unit_price * item.quantity
-            const cancelled = !!item.is_cancelled
+            const cancelledQty = item.cancelled_quantity ?? 0
+            const activeQty    = Math.max(0, item.quantity - cancelledQty)
+            const lineTotal    = activeQty * item.unit_price
+            const isLineFullyCancelled = cancelledQty >= item.quantity && item.quantity > 0
+            const busy = busyItemId === item.item_id
+
             return (
               <li
                 key={item.item_id}
-                className={`d-flex align-items-center gap-2 px-2 py-2 rounded ${
-                  cancelled ? 'bg-light opacity-75' : ''
-                }`}
-                style={{
-                  textDecoration: cancelled ? 'line-through' : 'none',
-                  background: cancelled ? undefined : '#fff7fa',
-                }}
+                className="d-flex align-items-center gap-2 px-2 py-2 rounded"
+                style={{ background: isLineFullyCancelled ? '#f1f3f5' : '#fff7fa' }}
               >
                 <div className="flex-grow-1 min-w-0">
-                  <div className="fw-bold text-truncate">
+                  <div
+                    className="fw-bold text-truncate"
+                    style={{ textDecoration: isLineFullyCancelled ? 'line-through' : 'none' }}
+                  >
                     {item.name}
-                    {cancelled && (
-                      <span className="badge bg-danger ms-2 align-middle">Cancelled</span>
+                    {cancelledQty > 0 && (
+                      <span className="badge bg-danger ms-2 align-middle">
+                        {cancelledQty} cancelled
+                      </span>
                     )}
                   </div>
                   {item.variety && (
@@ -87,24 +99,40 @@ function OrderCard({
 
                 <div className="text-end" style={{ minWidth: 110 }}>
                   <div className="small text-muted">
-                    ₱{fmtMoney(item.unit_price)} × {item.quantity}
+                    ₱{fmtMoney(item.unit_price)} × {activeQty}
+                    {cancelledQty > 0 && (
+                      <span className="text-danger ms-1">
+                        (of {item.quantity})
+                      </span>
+                    )}
                   </div>
-                  <div className="fw-bold text-primary">
+                  <div
+                    className="fw-bold text-primary"
+                    style={{ textDecoration: isLineFullyCancelled ? 'line-through' : 'none' }}
+                  >
                     ₱{fmtMoney(lineTotal)}
                   </div>
                 </div>
 
                 {canEdit && (
-                  <button
-                    className={`btn btn-sm ${
-                      cancelled ? 'btn-outline-secondary' : 'btn-outline-danger'
-                    }`}
-                    title={cancelled ? 'Restore item' : 'Cancel item'}
-                    disabled={busyItemId === item.item_id}
-                    onClick={() => onToggleCancel(item.item_id, !cancelled)}
-                  >
-                    <i className={`bi ${cancelled ? 'bi-arrow-counterclockwise' : 'bi-x-lg'}`} />
-                  </button>
+                  <div className="btn-group btn-group-sm" role="group">
+                    <button
+                      className="btn btn-outline-secondary"
+                      title="Restore one"
+                      disabled={busy || cancelledQty === 0}
+                      onClick={() => onAdjust(item.item_id, -1)}
+                    >
+                      <i className="bi bi-arrow-counterclockwise" />
+                    </button>
+                    <button
+                      className="btn btn-outline-danger"
+                      title="Cancel one"
+                      disabled={busy || activeQty === 0}
+                      onClick={() => onAdjust(item.item_id, +1)}
+                    >
+                      <i className="bi bi-x-lg" />
+                    </button>
+                  </div>
                 )}
               </li>
             )
@@ -116,17 +144,19 @@ function OrderCard({
           <span className="fw-bold fs-5 text-primary">₱{fmtMoney(liveTotal)}</span>
         </div>
 
-        <button
-          className={`btn btn-sm ${actionClass} w-100 w-sm-auto`}
-          onClick={() => onAction(order.id)}
-          disabled={actionDisabled}
-        >
-          <i className={`bi ${actionIcon} me-1`} />
-          {actionLabel}
-        </button>
+        {actionLabel && (
+          <button
+            className={`btn btn-sm ${actionClass} w-100 w-sm-auto`}
+            onClick={() => onAction(order.id)}
+            disabled={actionDisabled}
+          >
+            <i className={`bi ${actionIcon} me-1`} />
+            {actionLabel}
+          </button>
+        )}
         {actionDisabled && canEdit && (
           <div className="small text-muted mt-2">
-            All items are cancelled — restore an item to complete this order.
+            All items are cancelled — restore an item to complete this order, or it will appear in the Cancelled tab.
           </div>
         )}
       </div>
@@ -135,7 +165,7 @@ function OrderCard({
 }
 
 export default function AdminOrders() {
-  const [tab,         setTab]         = useState('preparing')   // 'preparing' | 'completed'
+  const [tab,         setTab]         = useState('preparing')   // preparing | completed | cancelled
   const [orders,      setOrders]      = useState([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -190,34 +220,52 @@ export default function AdminOrders() {
     }
   }
 
-  const handleToggleCancel = async (orderId, itemId, nextCancelled) => {
+  const handleAdjust = async (orderId, itemId, delta) => {
     setBusyItemId(itemId)
-    // Optimistic update
-    setOrders((prev) => prev.map((o) =>
-      o.id !== orderId ? o : {
-        ...o,
-        items: (o.items ?? []).map((it) =>
-          it.item_id === itemId ? { ...it, is_cancelled: nextCancelled ? 1 : 0 } : it
-        ),
-      }
-    ))
     try {
-      await cancelOrderItem(orderId, itemId, nextCancelled)
-    } catch {
-      alert('Failed to update item. Reverting.')
-      // Revert
-      setOrders((prev) => prev.map((o) =>
-        o.id !== orderId ? o : {
-          ...o,
-          items: (o.items ?? []).map((it) =>
-            it.item_id === itemId ? { ...it, is_cancelled: nextCancelled ? 0 : 1 } : it
-          ),
+      const { data } = await adjustOrderItemCancel(orderId, itemId, delta)
+      setOrders((prev) => {
+        const updated = prev.map((o) =>
+          o.id !== orderId ? o : {
+            ...o,
+            items: (o.items ?? []).map((it) =>
+              it.item_id === itemId
+                ? { ...it, cancelled_quantity: data.cancelled_quantity }
+                : it
+            ),
+          }
+        )
+        // If on preparing tab and the order just became fully cancelled,
+        // remove it (it will reappear on the Cancelled tab).
+        if (tab === 'preparing') {
+          return updated.filter((o) => {
+            const remaining = (o.items ?? []).reduce(
+              (s, it) => s + Math.max(0, it.quantity - (it.cancelled_quantity ?? 0)),
+              0,
+            )
+            return remaining > 0
+          })
         }
-      ))
+        return updated
+      })
+    } catch (err) {
+      const detail = err?.response?.data?.error ?? 'Failed to update item.'
+      alert(detail)
     } finally {
       setBusyItemId(0)
     }
   }
+
+  const tabBtn = (key, icon, label) => (
+    <li className="nav-item" key={key}>
+      <button
+        className={`nav-link ${tab === key ? 'active' : 'text-dark bg-white border'}`}
+        onClick={() => setTab(key)}
+      >
+        <i className={`bi ${icon} me-1`} /> {label}
+      </button>
+    </li>
+  )
 
   return (
     <div>
@@ -231,23 +279,10 @@ export default function AdminOrders() {
         </button>
       </div>
 
-      <ul className="nav nav-pills mb-3 gap-2">
-        <li className="nav-item">
-          <button
-            className={`nav-link ${tab === 'preparing' ? 'active' : 'text-dark bg-white border'}`}
-            onClick={() => setTab('preparing')}
-          >
-            <i className="bi bi-fire me-1" /> Preparing
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${tab === 'completed' ? 'active' : 'text-dark bg-white border'}`}
-            onClick={() => setTab('completed')}
-          >
-            <i className="bi bi-check2-circle me-1" /> Completed
-          </button>
-        </li>
+      <ul className="nav nav-pills mb-3 gap-2 flex-wrap">
+        {tabBtn('preparing', 'bi-fire', 'Preparing')}
+        {tabBtn('completed', 'bi-check2-circle', 'Completed')}
+        {tabBtn('cancelled', 'bi-x-octagon', 'Cancelled')}
       </ul>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -264,34 +299,60 @@ export default function AdminOrders() {
       ) : (
         <div className="d-flex flex-column gap-3">
           {orders.map((o) => {
-            const allCancelled =
-              (o.items ?? []).length > 0 &&
-              (o.items ?? []).every((it) => it.is_cancelled)
-            return tab === 'preparing' ? (
-              <OrderCard
-                key={o.id}
-                order={o}
-                canEdit
-                onAction={handleComplete}
-                actionLabel={acting === o.id ? 'Completing…' : 'Mark Completed'}
-                actionIcon="bi-check2-square"
-                actionClass="btn-success"
-                actionDisabled={allCancelled || acting === o.id}
-                onToggleCancel={(itemId, next) => handleToggleCancel(o.id, itemId, next)}
-                busyItemId={busyItemId}
-              />
-            ) : (
+            const remaining = (o.items ?? []).reduce(
+              (s, it) => s + Math.max(0, it.quantity - (it.cancelled_quantity ?? 0)),
+              0,
+            )
+            const fullyCancelled = remaining === 0
+
+            if (tab === 'preparing') {
+              return (
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  canEdit
+                  onAction={handleComplete}
+                  actionLabel={acting === o.id ? 'Completing…' : 'Mark Completed'}
+                  actionIcon="bi-check2-square"
+                  actionClass="btn-success"
+                  actionDisabled={fullyCancelled || acting === o.id}
+                  onAdjust={(itemId, delta) => handleAdjust(o.id, itemId, delta)}
+                  busyItemId={busyItemId}
+                  fullyCancelled={fullyCancelled}
+                />
+              )
+            }
+            if (tab === 'completed') {
+              return (
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  canEdit={false}
+                  onAction={handleReopen}
+                  actionLabel={acting === o.id ? 'Reopening…' : 'Reopen (back to Preparing)'}
+                  actionIcon="bi-arrow-counterclockwise"
+                  actionClass="btn-outline-secondary"
+                  actionDisabled={acting === o.id}
+                  onAdjust={() => {}}
+                  busyItemId={0}
+                  fullyCancelled={false}
+                />
+              )
+            }
+            // Cancelled tab: read-only, no action button
+            return (
               <OrderCard
                 key={o.id}
                 order={o}
                 canEdit={false}
-                onAction={handleReopen}
-                actionLabel={acting === o.id ? 'Reopening…' : 'Reopen (back to Preparing)'}
-                actionIcon="bi-arrow-counterclockwise"
-                actionClass="btn-outline-secondary"
-                actionDisabled={acting === o.id}
-                onToggleCancel={() => {}}
+                onAction={() => {}}
+                actionLabel={null}
+                actionIcon=""
+                actionClass=""
+                actionDisabled
+                onAdjust={() => {}}
                 busyItemId={0}
+                fullyCancelled
               />
             )
           })}
@@ -300,3 +361,4 @@ export default function AdminOrders() {
     </div>
   )
 }
+

@@ -73,14 +73,13 @@ $db = getDB();
 
 $dayStmt = $db->prepare(
     "SELECT
-         DATE(o.created_at)                              AS day,
-         COALESCE(SUM(oi.quantity * oi.unit_price), 0)   AS revenue,
-         COUNT(DISTINCT o.id)                            AS order_count
+         DATE(o.created_at)                                                       AS day,
+         COALESCE(SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0) * oi.unit_price), 0) AS revenue,
+         COUNT(DISTINCT o.id)                                                     AS order_count
      FROM orders o
      JOIN order_items oi ON oi.order_id = o.id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
       AND o.status IN ('paid', 'completed')
-      AND oi.is_cancelled = 0
     GROUP BY DATE(o.created_at)"
 );
 $dayStmt->execute([$startStr, $endStr]);
@@ -123,18 +122,18 @@ while ($cursor <= $end) {
 
 $topStmt = $db->prepare(
     "SELECT
-         p.id                                 AS product_id,
+         p.id                                                                       AS product_id,
          p.name,
          p.variety,
-         SUM(oi.quantity)                     AS total_sold,
-         SUM(oi.quantity * oi.unit_price)     AS revenue
+         SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0))                      AS total_sold,
+         SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0) * oi.unit_price)      AS revenue
      FROM order_items oi
      JOIN orders   o ON o.id  = oi.order_id
      JOIN products p ON p.id  = oi.product_id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
       AND o.status IN ('paid', 'completed')
-      AND oi.is_cancelled = 0
     GROUP BY p.id, p.name, p.variety
+   HAVING total_sold > 0
     ORDER BY total_sold DESC
     LIMIT 10"
 );

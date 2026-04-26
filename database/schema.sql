@@ -50,12 +50,13 @@ CREATE TABLE IF NOT EXISTS orders (
 -- order_items: line items per order
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS order_items (
-  id           INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-  order_id     INT UNSIGNED    NOT NULL,
-  product_id   INT UNSIGNED    NOT NULL,
-  quantity     INT UNSIGNED    NOT NULL DEFAULT 1,
-  unit_price   DECIMAL(10,2)   NOT NULL,
-  is_cancelled TINYINT(1)      NOT NULL DEFAULT 0,
+  id                 INT UNSIGNED  AUTO_INCREMENT PRIMARY KEY,
+  order_id           INT UNSIGNED  NOT NULL,
+  product_id         INT UNSIGNED  NOT NULL,
+  quantity           INT UNSIGNED  NOT NULL DEFAULT 1,
+  cancelled_quantity INT UNSIGNED  NOT NULL DEFAULT 0,
+  unit_price         DECIMAL(10,2) NOT NULL,
+  is_cancelled       TINYINT(1)    NOT NULL DEFAULT 0,
   CONSTRAINT fk_items_order   FOREIGN KEY (order_id)
     REFERENCES orders(id)   ON DELETE CASCADE  ON UPDATE CASCADE,
   CONSTRAINT fk_items_product FOREIGN KEY (product_id)
