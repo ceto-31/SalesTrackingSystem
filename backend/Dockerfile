@@ -13,9 +13,9 @@ RUN cd /etc/apache2/mods-enabled \
     && ln -s ../mods-available/mpm_prefork.conf mpm_prefork.conf \
     && a2enmod rewrite headers
 
-# Build context is backend/ so paths are relative to backend/
-COPY apache.conf /etc/apache2/sites-available/000-default.conf
-COPY . /var/www/html/
+# Build context is always repo root in Railway — paths must start with backend/
+COPY backend/apache.conf /etc/apache2/sites-available/000-default.conf
+COPY backend/ /var/www/html/
 
 # Ensure uploads directory exists with correct ownership
 RUN mkdir -p /var/www/html/uploads/products \
