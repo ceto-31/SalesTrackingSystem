@@ -1,0 +1,22 @@
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# User uploads — ephemeral, not tracked in git
+backend/uploads/products/*
+!backend/uploads/products/.gitkeep
+
+# Security — never commit the debug tool
+backend/debug.php
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
