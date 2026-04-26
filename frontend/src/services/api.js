@@ -54,6 +54,22 @@ export const deleteCashier  = (id) =>
 export const getAnalytics = (date, mode = 'week') =>
   api.get('/admin/analytics.php', { params: { date, mode } })
 
+// ── Admin — Orders ────────────────────────────────────────────────────────────
+
+export const getAdminOrders = (status = 'preparing') =>
+  api.get('/admin/orders.php', { params: { status } })
+
+export const completeOrder = (id) =>
+  api.put(`/admin/orders.php?id=${id}`, { status: 'completed' })
+
+export const reopenOrder = (id) =>
+  api.put(`/admin/orders.php?id=${id}`, { status: 'preparing' })
+
+// ── Shared — Categories ───────────────────────────────────────────────────────
+
+export const getCategories = () =>
+  api.get('/shared/categories.php')
+
 // ── Cashier — Orders ─────────────────────────────────────────────────────────
 
 export const getCashierOrders = () =>

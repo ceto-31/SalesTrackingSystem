@@ -64,7 +64,7 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     $body         = json_decode(file_get_contents('php://input'), true) ?? [];
     $customerName = trim((string)($body['customer_name'] ?? ''));
-    $status       = $body['status'] ?? 'unpaid';
+    $status       = $body['status'] ?? 'preparing';
     $items        = $body['items']  ?? [];
 
     if ($customerName === '') {
@@ -73,9 +73,9 @@ if ($method === 'POST') {
         exit;
     }
 
-    if (!in_array($status, ['paid', 'unpaid'], true)) {
+    if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
         http_response_code(422);
-        echo json_encode(['error' => 'status must be paid or unpaid']);
+        echo json_encode(['error' => 'invalid status']);
         exit;
     }
 
@@ -162,9 +162,9 @@ if ($method === 'PUT') {
     $body   = json_decode(file_get_contents('php://input'), true) ?? [];
     $status = $body['status'] ?? '';
 
-    if (!in_array($status, ['paid', 'unpaid'], true)) {
+    if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
         http_response_code(422);
-        echo json_encode(['error' => 'status must be paid or unpaid']);
+        echo json_encode(['error' => 'invalid status']);
         exit;
     }
 

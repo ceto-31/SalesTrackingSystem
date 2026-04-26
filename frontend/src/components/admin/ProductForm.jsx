@@ -2,19 +2,29 @@
 // Modal form used for both creating and editing a product.
 
 import React, { useState, useEffect, useRef } from 'react'
-import { createProduct, updateProduct } from '../../services/api'
+import { createProduct, updateProduct, getCategories } from '../../services/api'
 
 const EMPTY = { name: '', price: '', variety: '' }
 
 export default function ProductForm({ product, onSaved, onClose }) {
-  const [fields,   setFields]   = useState(EMPTY)
-  const [preview,  setPreview]  = useState(null)
-  const [fileObj,  setFileObj]  = useState(null)
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const [fields,     setFields]     = useState(EMPTY)
+  const [preview,    setPreview]    = useState(null)
+  const [fileObj,    setFileObj]    = useState(null)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
+  const [categories, setCategories] = useState([])
   const fileRef = useRef()
 
   const isEdit = Boolean(product)
+
+  // Load category suggestions once on mount
+  useEffect(() => {
+    let cancel = false
+    getCategories()
+      .then(({ data }) => { if (!cancel) setCategories(Array.isArray(data) ? data : []) })
+      .catch(() => { /* silent: datalist is just a hint */ })
+    return () => { cancel = true }
+  }, [])
 
   useEffect(() => {
     if (product) {
@@ -139,15 +149,24 @@ export default function ProductForm({ product, onSaved, onClose }) {
               </div>
 
               <div className="mb-3">
-                <label className="form-label fw-semibold">Category (Variety)</label>
+                <label className="form-label fw-semibold">Category</label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Drinks, Snacks, Meals"
+                  list="product-category-options"
+                  placeholder="Pick or type a new category"
                   value={fields.variety}
                   onChange={(e) => setFields({ ...fields, variety: e.target.value })}
                   required
                 />
+                <datalist id="product-category-options">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+                <div className="form-text">
+                  Suggestions come from your saved categories. Type a new one to add it.
+                </div>
               </div>
             </div>
 

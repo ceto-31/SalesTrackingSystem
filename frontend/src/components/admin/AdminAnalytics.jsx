@@ -20,10 +20,10 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, 
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-const INDIGO  = '#4f46e5'
-const INDIGO2 = 'rgba(79,70,229,0.18)'
+const INDIGO  = '#d6336c'                  // primary rose-pink
+const INDIGO2 = 'rgba(214,51,108,0.18)'
 const GREEN   = '#10b981'
-const VIOLET  = '#7c3aed'
+const VIOLET  = '#a8326a'                  // muted pink-mauve
 
 const RANK_COLORS = ['#f59e0b', '#94a3b8', '#cd7c4c']   // gold, silver, bronze
 
@@ -106,7 +106,7 @@ function TopProductRow({ rank, product, maxSold }) {
       <div style={{ height: 5, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${pct}%`,
-          background: `linear-gradient(90deg, ${INDIGO}, #818cf8)`,
+          background: `linear-gradient(90deg, ${INDIGO}, #f06ea1)`,
           borderRadius: 99,
           transition: 'width .6s ease',
         }} />
@@ -167,8 +167,8 @@ export default function AdminAnalytics() {
         const { ctx: c2d, chartArea } = chart
         if (!chartArea) return INDIGO2
         const grad = c2d.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-        grad.addColorStop(0,   'rgba(79,70,229,0.22)')
-        grad.addColorStop(1,   'rgba(79,70,229,0)')
+        grad.addColorStop(0,   'rgba(214,51,108,0.22)')
+        grad.addColorStop(1,   'rgba(214,51,108,0)')
         return grad
       },
     }],
@@ -251,7 +251,7 @@ export default function AdminAnalytics() {
                   borderRadius: 8, fontWeight: 600, fontSize: 13, transition: 'all .15s',
                   background: mode === m ? INDIGO : 'transparent',
                   color:      mode === m ? '#fff'  : '#64748b',
-                  boxShadow:  mode === m ? '0 1px 4px rgba(79,70,229,.3)' : 'none',
+                  boxShadow:  mode === m ? '0 1px 4px rgba(214,51,108,.3)' : 'none',
                 }}
               >
                 {m.charAt(0).toUpperCase() + m.slice(1)}

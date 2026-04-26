@@ -1,0 +1,53 @@
+/* Subtle rose-pink theme — overrides Bootstrap primary palette only.
+   Keeps the rest of Bootstrap's defaults so nothing else shifts visually. */
+
+:root {
+  --bs-primary: #d6336c;
+  --bs-primary-rgb: 214, 51, 108;
+  --bs-link-color: #c82765;
+  --bs-link-hover-color: #a01e51;
+
+  /* Custom tokens used in inline styles below */
+  --app-primary: #d6336c;
+  --app-primary-soft: #fdeef3;
+  --app-primary-dark: #b02a5b;
+  --app-bg-tint: #fff7fa;
+}
+
+/* Buttons & badges */
+.btn-primary {
+  --bs-btn-bg: #d6336c;
+  --bs-btn-border-color: #d6336c;
+  --bs-btn-hover-bg: #b02a5b;
+  --bs-btn-hover-border-color: #b02a5b;
+  --bs-btn-active-bg: #94234c;
+  --bs-btn-active-border-color: #94234c;
+  --bs-btn-focus-shadow-rgb: 214, 51, 108;
+}
+.btn-outline-primary {
+  --bs-btn-color: #d6336c;
+  --bs-btn-border-color: #d6336c;
+  --bs-btn-hover-bg: #d6336c;
+  --bs-btn-hover-border-color: #d6336c;
+  --bs-btn-active-bg: #b02a5b;
+  --bs-btn-active-border-color: #b02a5b;
+}
+.bg-primary { background-color: #d6336c !important; }
+.text-primary { color: #d6336c !important; }
+.border-primary { border-color: #d6336c !important; }
+
+/* Soft pink background tint replaces the harsh Bootstrap "bg-light" gray */
+.bg-light { background-color: #fff7fa !important; }
+
+/* Active nav link in admin sidebar / cashier topbar (already uses .bg-primary) */
+.nav-link.active.bg-primary { background-color: #d6336c !important; }
+
+/* Form focus ring */
+.form-control:focus,
+.form-select:focus {
+  border-color: #e58aae;
+  box-shadow: 0 0 0 0.2rem rgba(214, 51, 108, 0.18);
+}
+
+/* Spinner / loaders inherit text-primary so they pick up the new color */
+.spinner-border.text-primary { color: #d6336c !important; }

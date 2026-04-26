@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import AdminProducts  from '../components/admin/AdminProducts'
 import AdminAnalytics from '../components/admin/AdminAnalytics'
 import AdminUsers     from '../components/admin/AdminUsers'
+import AdminOrders    from '../components/admin/AdminOrders'
 
 const SIDEBAR_WIDTH = 230
 
@@ -101,6 +102,9 @@ export default function AdminLayout() {
           <NavLink to="/admin/analytics" className={navClass}>
             <i className="bi bi-bar-chart-line" /> Analytics
           </NavLink>
+          <NavLink to="/admin/orders" className={navClass}>
+            <i className="bi bi-receipt-cutoff" /> Orders
+          </NavLink>
           <NavLink to="/admin/products" className={navClass}>
             <i className="bi bi-box-seam" /> Products
           </NavLink>
@@ -135,6 +139,7 @@ export default function AdminLayout() {
         <Routes>
           <Route index                element={<Navigate to="analytics" replace />} />
           <Route path="analytics"     element={<AdminAnalytics />} />
+          <Route path="orders"        element={<AdminOrders />} />
           <Route path="products"      element={<AdminProducts />} />
           <Route path="users"         element={<AdminUsers />} />
         </Routes>
