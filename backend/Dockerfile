@@ -3,8 +3,9 @@ FROM php:8.2-apache
 # Install PDO MySQL extension
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Enable Apache modules required for .htaccess rewrites and CORS headers
-RUN a2enmod rewrite headers
+# Ensure only one MPM is loaded (mpm_prefork), then enable required modules
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork rewrite headers
 
 # Replace default Apache vhost with our config (enables AllowOverride + PassEnv)
 COPY backend/apache.conf /etc/apache2/sites-available/000-default.conf
