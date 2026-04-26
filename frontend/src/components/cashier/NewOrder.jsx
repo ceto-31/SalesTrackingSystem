@@ -90,7 +90,7 @@ export default function NewOrder() {
   }
 
   return (
-    <div className="row g-4" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+    <div className="row g-4">
       {/* ── Product Grid ── */}
       <div className="col-lg-8">
         <div className="d-flex align-items-center justify-content-between mb-3">
@@ -114,29 +114,30 @@ export default function NewOrder() {
         {error && <div className="alert alert-danger">{error}</div>}
 
         {!loading && (
-          <div className="row g-3 overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <div className="row g-3">
             {filtered.map((p) => {
               const inCart = cart.find((i) => i.product.id === p.id)
               return (
-                <div className="col-6 col-md-4 col-xl-3" key={p.id}>
+                <div className="col-6 col-sm-6 col-md-4 col-xl-3" key={p.id}>
                   <div
                     className={`card h-100 border-0 shadow-sm product-card ${inCart ? 'border border-primary' : ''}`}
                     style={{ cursor: 'pointer' }}
                     onClick={() => addToCart(p)}
                   >
                     {p.image ? (
-                      <img
-                        src={`/${p.image}`}
-                        alt={p.name}
-                        className="card-img-top"
-                        style={{ height: 120, objectFit: 'cover' }}
-                      />
+                      <div className="ratio ratio-1x1">
+                        <img
+                          src={`/${p.image}`}
+                          alt={p.name}
+                          className="card-img-top"
+                          style={{ objectFit: 'cover' }}
+                        />
+                      </div>
                     ) : (
-                      <div
-                        className="bg-light d-flex align-items-center justify-content-center"
-                        style={{ height: 120 }}
-                      >
-                        <i className="bi bi-image fs-2 text-muted" />
+                      <div className="ratio ratio-1x1">
+                        <div className="bg-light d-flex align-items-center justify-content-center">
+                          <i className="bi bi-image fs-2 text-muted" />
+                        </div>
                       </div>
                     )}
                     <div className="card-body p-2">

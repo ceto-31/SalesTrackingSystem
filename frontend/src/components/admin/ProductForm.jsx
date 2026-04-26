@@ -65,7 +65,7 @@ export default function ProductForm({ product, onSaved, onClose }) {
       style={{ background: 'rgba(0,0,0,.4)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title fw-bold">

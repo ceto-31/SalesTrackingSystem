@@ -67,12 +67,13 @@ export default function AdminProducts() {
       ) : (
         <div className="card border-0 shadow-sm">
           <div className="card-body p-0">
+            <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead className="table-light">
                 <tr>
                   <th style={{ width: 64 }}>Image</th>
                   <th>Name</th>
-                  <th>Category</th>
+                  <th className="d-none d-md-table-cell">Category</th>
                   <th className="text-end">Price</th>
                   <th style={{ width: 120 }} />
                 </tr>
@@ -97,8 +98,13 @@ export default function AdminProducts() {
                         </div>
                       )}
                     </td>
-                    <td className="fw-semibold">{p.name}</td>
-                    <td>
+                    <td className="fw-semibold">
+                      {p.name}
+                      <span className="badge bg-secondary bg-opacity-15 text-dark ms-2 d-md-none">
+                        {p.variety}
+                      </span>
+                    </td>
+                    <td className="d-none d-md-table-cell">
                       <span className="badge bg-secondary bg-opacity-15 text-dark">
                         {p.variety}
                       </span>
@@ -128,6 +134,7 @@ export default function AdminProducts() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

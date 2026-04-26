@@ -45,7 +45,7 @@ function KpiCard({ icon, label, value, sub, color }) {
       display: 'flex',
       alignItems: 'center',
       gap: 18,
-      flex: 1,
+      height: '100%',
       minWidth: 0,
     }}>
       <div style={{
@@ -303,28 +303,34 @@ export default function AdminAnalytics() {
       {data && (
         <>
           {/* ── KPI cards ── */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-            <KpiCard
-              icon="bi-currency-exchange"
-              label="Total Revenue"
-              value={`₱${fmt(data.total_revenue)}`}
-              sub="paid orders only"
-              color={GREEN}
-            />
-            <KpiCard
-              icon="bi-receipt"
-              label="Total Orders"
-              value={data.order_count}
-              sub="all statuses"
-              color={INDIGO}
-            />
-            <KpiCard
-              icon="bi-graph-up-arrow"
-              label="Avg per Order"
-              value={`₱${fmt(avgPerOrder)}`}
-              sub="revenue ÷ orders"
-              color={VIOLET}
-            />
+          <div className="row g-3 mb-4">
+            <div className="col-12 col-sm-6 col-lg-4">
+              <KpiCard
+                icon="bi-currency-exchange"
+                label="Total Revenue"
+                value={`₱${fmt(data.total_revenue)}`}
+                sub="paid orders only"
+                color={GREEN}
+              />
+            </div>
+            <div className="col-12 col-sm-6 col-lg-4">
+              <KpiCard
+                icon="bi-receipt"
+                label="Total Orders"
+                value={data.order_count}
+                sub="all statuses"
+                color={INDIGO}
+              />
+            </div>
+            <div className="col-12 col-sm-12 col-lg-4">
+              <KpiCard
+                icon="bi-graph-up-arrow"
+                label="Avg per Order"
+                value={`₱${fmt(avgPerOrder)}`}
+                sub="revenue ÷ orders"
+                color={VIOLET}
+              />
+            </div>
           </div>
 
           {/* ── Revenue chart ── */}
@@ -342,7 +348,7 @@ export default function AdminAnalytics() {
                 <span style={{ fontSize: 12, color: '#64748b' }}>Revenue (₱)</span>
               </div>
             </div>
-            <div style={{ height: 220 }}>
+            <div style={{ height: 'clamp(180px, 32vw, 280px)' }}>
               {chartData && <Line ref={chartRef} data={chartData} options={chartOptions} />}
             </div>
           </div>

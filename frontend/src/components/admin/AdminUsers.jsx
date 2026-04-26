@@ -78,7 +78,7 @@ export default function AdminUsers() {
             <h6 className="fw-bold mb-3">New Cashier Account</h6>
             {formError && <div className="alert alert-danger py-2">{formError}</div>}
             <form onSubmit={handleCreate} className="row g-3">
-              <div className="col-md-5">
+              <div className="col-12 col-md-5">
                 <input
                   type="text"
                   className="form-control"
@@ -88,7 +88,7 @@ export default function AdminUsers() {
                   required
                 />
               </div>
-              <div className="col-md-5">
+              <div className="col-12 col-md-5">
                 <input
                   type="password"
                   className="form-control"
@@ -99,7 +99,7 @@ export default function AdminUsers() {
                   required
                 />
               </div>
-              <div className="col-md-2">
+              <div className="col-12 col-md-2">
                 <button type="submit" className="btn btn-success w-100" disabled={saving}>
                   {saving
                     ? <span className="spinner-border spinner-border-sm" />
@@ -126,24 +126,25 @@ export default function AdminUsers() {
       ) : (
         <div className="card border-0 shadow-sm">
           <div className="card-body p-0">
+            <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead className="table-light">
                 <tr>
-                  <th>#</th>
+                  <th className="d-none d-sm-table-cell">#</th>
                   <th>Username</th>
-                  <th>Created</th>
+                  <th className="d-none d-md-table-cell">Created</th>
                   <th style={{ width: 80 }} />
                 </tr>
               </thead>
               <tbody>
                 {cashiers.map((c, i) => (
                   <tr key={c.id}>
-                    <td className="text-muted">{i + 1}</td>
+                    <td className="text-muted d-none d-sm-table-cell">{i + 1}</td>
                     <td className="fw-semibold">
                       <i className="bi bi-person-circle me-2 text-secondary" />
                       {c.username}
                     </td>
-                    <td className="text-muted small">
+                    <td className="text-muted small d-none d-md-table-cell">
                       {new Date(c.created_at).toLocaleDateString('en-PH', {
                         year: 'numeric', month: 'short', day: 'numeric',
                       })}
@@ -161,6 +162,7 @@ export default function AdminUsers() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

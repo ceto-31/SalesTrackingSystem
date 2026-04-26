@@ -103,12 +103,13 @@ export default function OrderList() {
                 </div>
 
                 {/* Items list */}
+                <div className="table-responsive">
                 <table className="table table-sm mb-0">
                   <tbody>
                     {(order.items ?? []).map((item) => (
                       <tr key={item.item_id}>
                         <td className="ps-0 border-0">{item.name}</td>
-                        <td className="text-muted border-0 small">{item.variety}</td>
+                        <td className="text-muted border-0 small d-none d-sm-table-cell">{item.variety}</td>
                         <td className="text-center border-0">×{item.quantity}</td>
                         <td className="text-end border-0 pe-0">
                           ₱{(item.unit_price * item.quantity).toLocaleString('en-PH', {
@@ -129,6 +130,7 @@ export default function OrderList() {
                     </tr>
                   </tfoot>
                 </table>
+                </div>
               </div>
             </div>
           ))}

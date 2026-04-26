@@ -30,7 +30,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3 py-4">
       <div className="card shadow-sm" style={{ width: '100%', maxWidth: 420 }}>
         <div className="card-body p-4">
           <div className="text-center mb-4">
