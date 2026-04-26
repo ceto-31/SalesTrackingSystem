@@ -9,11 +9,14 @@ function getDB(): PDO
     static $pdo = null;
 
     if ($pdo === null) {
-        $host    = $_ENV['DB_HOST']       ?? $_ENV['MYSQLHOST']     ?? 'localhost';
-        $port    = $_ENV['DB_PORT']       ?? $_ENV['MYSQLPORT']     ?? '3306';
-        $dbname  = $_ENV['DB_NAME']       ?? $_ENV['MYSQLDATABASE'] ?? 'order_tracking_db';
-        $user    = $_ENV['DB_USER']       ?? $_ENV['MYSQLUSER']     ?? 'root';
-        $pass    = $_ENV['DB_PASS']       ?? $_ENV['MYSQLPASSWORD'] ?? '';
+        $env = static fn(string $k): string =>
+            (string)(getenv($k) ?: ($_ENV[$k] ?? $_SERVER[$k] ?? ''));
+
+        $host    = $env('DB_HOST')   ?: $env('MYSQLHOST')     ?: 'localhost';
+        $port    = $env('DB_PORT')   ?: $env('MYSQLPORT')     ?: '3306';
+        $dbname  = $env('DB_NAME')   ?: $env('MYSQLDATABASE') ?: 'order_tracking_db';
+        $user    = $env('DB_USER')   ?: $env('MYSQLUSER')     ?: 'root';
+        $pass    = $env('DB_PASS')   ?: $env('MYSQLPASSWORD') ?: '';
 
         $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 

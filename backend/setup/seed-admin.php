@@ -34,6 +34,7 @@ require_once __DIR__ . '/../config/db.php';
 $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
 try {
+    $pdo = getDB();
     $stmt = $pdo->prepare(
         "INSERT INTO users (username, password, role)
          VALUES ('admin', :hash, 'admin')
