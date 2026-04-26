@@ -64,11 +64,11 @@ CREATE TABLE IF NOT EXISTS order_items (
 -- ------------------------------------------------------------
 -- Seed: default admin account
 -- Username : admin
--- Password : admin123  (bcrypt — CHANGE AFTER FIRST LOGIN)
+-- Password : CindySantos12  (bcrypt — CHANGE AFTER FIRST LOGIN)
 -- ------------------------------------------------------------
 INSERT INTO users (username, password, role)
 VALUES (
   'admin',
-  '$2y$12$yM2UG8WrjhEH72OmnxNv3.FPLaO3qk.1UQQ4ovwjCmliZ.vsmPQVW',
+  '$2y$12$pGgLZA3xhCnBlOvKxmdF2elGY9WWjhvQDbpZjrEyaIlRNs6mI.bh6',
   'admin'
 ) ON DUPLICATE KEY UPDATE id = id;
