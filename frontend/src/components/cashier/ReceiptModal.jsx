@@ -80,6 +80,14 @@ export default function ReceiptModal({ order, onClose }) {
                 </span>
               </div>
             )}
+            {order.notes && (
+              <div className="small mt-1">
+                <span className="d-block">Notes:</span>
+                <span className="fst-italic text-primary" style={{ wordBreak: 'break-word' }}>
+                  {order.notes}
+                </span>
+              </div>
+            )}
 
             <div
               className="my-2"

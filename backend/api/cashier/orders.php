@@ -28,7 +28,7 @@ $db     = getDB();
 if ($method === 'GET') {
     $stmt = $db->prepare(
         "SELECT
-             o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.created_at,
+             o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.notes, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
                      'item_id',            oi.id,
@@ -76,6 +76,13 @@ if ($method === 'POST') {
     $customerName = trim((string)($body['customer_name'] ?? ''));
     $status       = $body['status']     ?? 'preparing';
     $orderType    = $body['order_type'] ?? 'dine_in';
+    $notes        = trim((string)($body['notes'] ?? ''));
+    if (mb_strlen($notes) > 255) {
+        $notes = mb_substr($notes, 0, 255);
+    }
+    if ($notes === '') {
+        $notes = null;
+    }
     $items        = $body['items']      ?? [];
 
     if ($customerName === '') {
@@ -141,9 +148,9 @@ if ($method === 'POST') {
     $db->beginTransaction();
     try {
         $orderStmt = $db->prepare(
-            'INSERT INTO orders (cashier_id, customer_name, total_amount, status, order_type) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO orders (cashier_id, customer_name, total_amount, status, order_type, notes) VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $orderStmt->execute([$cashier['id'], $customerName, $total, $status, $orderType]);
+        $orderStmt->execute([$cashier['id'], $customerName, $total, $status, $orderType, $notes]);
         $orderId = (int)$db->lastInsertId();
 
         $itemStmt = $db->prepare(
@@ -189,6 +196,7 @@ if ($method === 'POST') {
         'total_amount'  => $total,
         'status'        => $status,
         'order_type'    => $orderType,
+        'notes'         => $notes,
         'created_at'    => date('c'),
         'items'         => $responseItems,
     ]);

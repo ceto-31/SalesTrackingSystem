@@ -16,6 +16,7 @@ export default function NewOrder() {
   const [filterVariety, setFilterVariety] = useState('All')
   const [receiptOrder,  setReceiptOrder]  = useState(null)
   const [orderType,     setOrderType]     = useState('dine_in')   // 'dine_in' | 'takeout'
+  const [notes,         setNotes]         = useState('')
 
   useEffect(() => {
     getProducts()
@@ -87,11 +88,13 @@ export default function NewOrder() {
         'preparing',
         cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
         orderType,
+        notes.trim(),
       )
       setReceiptOrder(data)
       setCart([])
       setCustomerName('')
       setOrderType('dine_in')
+      setNotes('')
       setSuccessMsg('Order sent to kitchen!')
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
@@ -224,6 +227,27 @@ export default function NewOrder() {
                   <i className="bi bi-bag me-1" /> Takeout
                 </button>
               </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-semibold small d-flex justify-content-between align-items-center">
+                <span>
+                  <i className="bi bi-sticky me-1 text-primary" />
+                  Notes (optional)
+                </span>
+                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                  {notes.length}/255
+                </span>
+              </label>
+              <textarea
+                className="form-control form-control-sm"
+                rows={2}
+                maxLength={255}
+                placeholder="e.g. less spicy, no onions\u2026"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                style={{ resize: 'vertical' }}
+              />
             </div>
 
             {/* Cart items */}

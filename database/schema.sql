@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total_amount  DECIMAL(10,2)   NOT NULL DEFAULT 0.00,
   status        ENUM('unpaid','paid','preparing','completed') NOT NULL DEFAULT 'unpaid',
   order_type    ENUM('dine_in','takeout') NOT NULL DEFAULT 'dine_in',
+  notes         VARCHAR(255)    NULL,
   created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_cashier FOREIGN KEY (cashier_id)
     REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE

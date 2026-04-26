@@ -48,7 +48,7 @@ if ($method === 'GET') {
     }
 
     $sql = "SELECT
-                o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.created_at,
+                o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.notes, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(

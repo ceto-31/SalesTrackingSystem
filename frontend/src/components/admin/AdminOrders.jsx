@@ -78,6 +78,23 @@ function OrderCard({
           Cashier: {order.cashier_name}
         </div>
 
+        {order.notes && (
+          <div
+            className="d-flex align-items-start gap-2 small mb-3 px-2 py-2 rounded"
+            style={{
+              background: '#fff7fa',
+              color: '#b02a5b',
+              border: '1px solid rgba(214,51,108,.25)',
+            }}
+          >
+            <i className="bi bi-sticky-fill mt-1" />
+            <div style={{ wordBreak: 'break-word' }}>
+              <span className="fw-semibold me-1">Notes:</span>
+              {order.notes}
+            </div>
+          </div>
+        )}
+
         <ul className="list-unstyled mb-3 d-flex flex-column gap-2">
           {items.map((item) => {
             const cancelledQty = item.cancelled_quantity ?? 0
