@@ -12,7 +12,7 @@ function startSession(): void
     if (session_status() === PHP_SESSION_NONE) {
         session_start([
             'cookie_httponly' => true,
-            'cookie_samesite' => 'Strict',
+            'cookie_samesite' => 'None',
             'cookie_secure'   => true,
             'use_strict_mode' => true,
         ]);
