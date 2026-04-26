@@ -17,7 +17,11 @@ export default function NewOrder() {
   useEffect(() => {
     getProducts()
       .then(({ data }) => setProducts(data))
-      .catch(() => setError('Failed to load products.'))
+      .catch((err) => {
+        const status = err?.response?.status
+        const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+        setError(`Failed to load products. [${status ?? 'network'}] ${detail}`)
+      })
       .finally(() => setLoading(false))
   }, [])
 
