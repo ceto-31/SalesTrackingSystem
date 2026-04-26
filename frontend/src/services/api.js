@@ -3,8 +3,13 @@
 
 import axios from 'axios'
 
+// Always use the relative /api path so requests go through Vercel's rewrite
+// proxy (vercel.json). This keeps the session cookie first-party, which is
+// required for iOS Safari and Brave to store/send PHPSESSID reliably.
+// Do NOT set VITE_API_URL to the Railway URL — that would bypass the proxy
+// and turn auth into a cross-site request again.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  baseURL: '/api',
   withCredentials: true,   // send session cookie
   headers: { 'Content-Type': 'application/json' },
 })
