@@ -76,6 +76,9 @@ export const adjustOrderItemCancel = (orderId, itemId, delta) =>
     { delta }
   )
 
+export const restoreOrder = (id) =>
+  api.put(`/admin/orders.php?id=${id}`, { action: 'restore_all' })
+
 // ── Shared — Categories ───────────────────────────────────────────────────────
 
 export const getCategories = () =>
@@ -86,8 +89,13 @@ export const getCategories = () =>
 export const getCashierOrders = () =>
   api.get('/cashier/orders.php')
 
-export const createOrder = (customerName, status, items) =>
-  api.post('/cashier/orders.php', { customer_name: customerName, status, items })
+export const createOrder = (customerName, status, items, orderType = 'dine_in') =>
+  api.post('/cashier/orders.php', {
+    customer_name: customerName,
+    status,
+    order_type: orderType,
+    items,
+  })
 
 export const updateOrderStatus = (id, status) =>
   api.put(`/cashier/orders.php?id=${id}`, { status })

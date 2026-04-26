@@ -8,6 +8,7 @@ import {
   completeOrder,
   reopenOrder,
   adjustOrderItemCancel,
+  restoreOrder,
 } from '../../services/api'
 
 const POLL_MS = 15000
@@ -41,9 +42,20 @@ function OrderCard({
     <div className="card border-0 shadow-sm">
       <div className="card-body">
         <div className="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
-          <div>
+          <div className="d-flex align-items-center flex-wrap gap-2">
             <span className="fw-bold">#{order.id}</span>
-            <span className="ms-2 text-muted small">{fmtTime(order.created_at)}</span>
+            <span className="text-muted small">{fmtTime(order.created_at)}</span>
+            {order.order_type && (
+              <span
+                className={`badge ${
+                  order.order_type === 'takeout' ? 'bg-primary' : 'bg-info text-dark'
+                }`}
+                style={{ fontSize: '0.85rem' }}
+              >
+                <i className={`bi ${order.order_type === 'takeout' ? 'bi-bag' : 'bi-shop'} me-1`} />
+                {order.order_type === 'takeout' ? 'Takeout' : 'Dine-in'}
+              </span>
+            )}
           </div>
           {fullyCancelled ? (
             <span className="badge bg-danger">
@@ -220,6 +232,19 @@ export default function AdminOrders() {
     }
   }
 
+  const handleRestore = async (id) => {
+    setActing(id)
+    try {
+      await restoreOrder(id)
+      // Order goes back to Preparing — drop from Cancelled list
+      setOrders((prev) => prev.filter((o) => o.id !== id))
+    } catch {
+      alert('Failed to restore order.')
+    } finally {
+      setActing(0)
+    }
+  }
+
   const handleAdjust = async (orderId, itemId, delta) => {
     setBusyItemId(itemId)
     try {
@@ -339,17 +364,17 @@ export default function AdminOrders() {
                 />
               )
             }
-            // Cancelled tab: read-only, no action button
+            // Cancelled tab: read-only items, but can restore the whole order
             return (
               <OrderCard
                 key={o.id}
                 order={o}
                 canEdit={false}
-                onAction={() => {}}
-                actionLabel={null}
-                actionIcon=""
-                actionClass=""
-                actionDisabled
+                onAction={handleRestore}
+                actionLabel={acting === o.id ? 'Restoring…' : 'Restore Order'}
+                actionIcon="bi-arrow-counterclockwise"
+                actionClass="btn-primary"
+                actionDisabled={acting === o.id}
                 onAdjust={() => {}}
                 busyItemId={0}
                 fullyCancelled

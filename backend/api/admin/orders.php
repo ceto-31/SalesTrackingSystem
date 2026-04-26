@@ -48,7 +48,7 @@ if ($method === 'GET') {
     }
 
     $sql = "SELECT
-                o.id, o.customer_name, o.total_amount, o.status, o.created_at,
+                o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -164,6 +164,25 @@ if ($method === 'PUT') {
             'cancelled_quantity' => $next,
             'quantity'           => $max,
         ]);
+        exit;
+    }
+
+    // Variant: restore the entire order (un-cancel all items).
+    // PUT ?id=N  body: { action: 'restore_all' }
+    $action = $body['action'] ?? '';
+    if ($action === 'restore_all') {
+        $check = $db->prepare('SELECT status FROM orders WHERE id = ?');
+        $check->execute([$id]);
+        $row = $check->fetch();
+        if ($row === false) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Order not found']);
+            exit;
+        }
+        // Reset all line cancellations and put the order back into Preparing.
+        $db->prepare('UPDATE order_items SET cancelled_quantity = 0 WHERE order_id = ?')->execute([$id]);
+        $db->prepare("UPDATE orders SET status = 'preparing' WHERE id = ?")->execute([$id]);
+        echo json_encode(['id' => $id, 'restored' => true, 'status' => 'preparing']);
         exit;
     }
 

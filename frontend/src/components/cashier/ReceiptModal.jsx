@@ -72,6 +72,14 @@ export default function ReceiptModal({ order, onClose }) {
               <span>Customer</span>
               <span>{order.customer_name}</span>
             </div>
+            {order.order_type && (
+              <div className="d-flex justify-content-between small">
+                <span>Type</span>
+                <span className="fw-bold text-primary">
+                  {order.order_type === 'takeout' ? 'Takeout' : 'Dine-in'}
+                </span>
+              </div>
+            )}
 
             <div
               className="my-2"

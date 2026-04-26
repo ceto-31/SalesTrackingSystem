@@ -28,7 +28,7 @@ $db     = getDB();
 if ($method === 'GET') {
     $stmt = $db->prepare(
         "SELECT
-             o.id, o.customer_name, o.total_amount, o.status, o.created_at,
+             o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
                      'item_id',            oi.id,
@@ -74,8 +74,9 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     $body         = json_decode(file_get_contents('php://input'), true) ?? [];
     $customerName = trim((string)($body['customer_name'] ?? ''));
-    $status       = $body['status'] ?? 'preparing';
-    $items        = $body['items']  ?? [];
+    $status       = $body['status']     ?? 'preparing';
+    $orderType    = $body['order_type'] ?? 'dine_in';
+    $items        = $body['items']      ?? [];
 
     if ($customerName === '') {
         http_response_code(400);
@@ -86,6 +87,12 @@ if ($method === 'POST') {
     if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
         http_response_code(422);
         echo json_encode(['error' => 'invalid status']);
+        exit;
+    }
+
+    if (!in_array($orderType, ['dine_in', 'takeout'], true)) {
+        http_response_code(422);
+        echo json_encode(['error' => 'invalid order_type']);
         exit;
     }
 
@@ -134,9 +141,9 @@ if ($method === 'POST') {
     $db->beginTransaction();
     try {
         $orderStmt = $db->prepare(
-            'INSERT INTO orders (cashier_id, customer_name, total_amount, status) VALUES (?, ?, ?, ?)'
+            'INSERT INTO orders (cashier_id, customer_name, total_amount, status, order_type) VALUES (?, ?, ?, ?, ?)'
         );
-        $orderStmt->execute([$cashier['id'], $customerName, $total, $status]);
+        $orderStmt->execute([$cashier['id'], $customerName, $total, $status, $orderType]);
         $orderId = (int)$db->lastInsertId();
 
         $itemStmt = $db->prepare(
@@ -181,6 +188,7 @@ if ($method === 'POST') {
         'cashier_name'  => $cashier['username'],
         'total_amount'  => $total,
         'status'        => $status,
+        'order_type'    => $orderType,
         'created_at'    => date('c'),
         'items'         => $responseItems,
     ]);

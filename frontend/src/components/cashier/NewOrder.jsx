@@ -15,6 +15,7 @@ export default function NewOrder() {
   const [successMsg,    setSuccessMsg]    = useState('')
   const [filterVariety, setFilterVariety] = useState('All')
   const [receiptOrder,  setReceiptOrder]  = useState(null)
+  const [orderType,     setOrderType]     = useState('dine_in')   // 'dine_in' | 'takeout'
 
   useEffect(() => {
     getProducts()
@@ -84,11 +85,13 @@ export default function NewOrder() {
       const { data } = await createOrder(
         customerName,
         'preparing',
-        cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity }))
+        cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
+        orderType,
       )
       setReceiptOrder(data)
       setCart([])
       setCustomerName('')
+      setOrderType('dine_in')
       setSuccessMsg('Order sent to kitchen!')
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
@@ -201,6 +204,26 @@ export default function NewOrder() {
                   Customer name is required before sending the order.
                 </div>
               )}
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-semibold small d-block">Order Type</label>
+              <div className="btn-group w-100" role="group" aria-label="Order type">
+                <button
+                  type="button"
+                  className={`btn ${orderType === 'dine_in' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setOrderType('dine_in')}
+                >
+                  <i className="bi bi-shop me-1" /> Dine-in
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${orderType === 'takeout' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setOrderType('takeout')}
+                >
+                  <i className="bi bi-bag me-1" /> Takeout
+                </button>
+              </div>
             </div>
 
             {/* Cart items */}
