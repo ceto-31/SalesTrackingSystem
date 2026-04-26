@@ -10,7 +10,6 @@ export default function NewOrder() {
   const [error,         setError]         = useState('')
   const [customerName,  setCustomerName]  = useState('')
   const [cart,          setCart]          = useState([])  // [{product, quantity}]
-  const [status,        setStatus]        = useState('unpaid')
   const [submitting,    setSubmitting]    = useState(false)
   const [successMsg,    setSuccessMsg]    = useState('')
   const [filterVariety, setFilterVariety] = useState('All')
@@ -74,13 +73,12 @@ export default function NewOrder() {
     try {
       await createOrder(
         customerName,
-        status,
+        'preparing',
         cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity }))
       )
       setCart([])
       setCustomerName('')
-      setStatus('unpaid')
-      setSuccessMsg('Order placed successfully!')
+      setSuccessMsg('Order sent to kitchen!')
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
       setError(err.response?.data?.error ?? 'Failed to place order.')
@@ -226,24 +224,7 @@ export default function NewOrder() {
                 </span>
               </div>
 
-              {/* Paid / Unpaid toggle */}
-              <div className="d-flex gap-2 mb-3">
-                <button
-                  type="button"
-                  className={`btn flex-fill ${status === 'paid' ? 'btn-success' : 'btn-outline-success'}`}
-                  onClick={() => setStatus('paid')}
-                >
-                  <i className="bi bi-check-circle me-1" /> Paid
-                </button>
-                <button
-                  type="button"
-                  className={`btn flex-fill ${status === 'unpaid' ? 'btn-warning' : 'btn-outline-warning'}`}
-                  onClick={() => setStatus('unpaid')}
-                >
-                  <i className="bi bi-clock me-1" /> Unpaid
-                </button>
-              </div>
-
+              {/* Place order button */}
               <form onSubmit={handleSubmit}>
                 <button
                   type="submit"
@@ -254,7 +235,7 @@ export default function NewOrder() {
                     ? <span className="spinner-border spinner-border-sm me-2" />
                     : <i className="bi bi-send me-2" />
                   }
-                  Place Order
+                  Send to Kitchen
                 </button>
               </form>
             </div>

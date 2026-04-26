@@ -1,8 +1,15 @@
 // src/components/cashier/OrderList.jsx
-// Cashier's own orders with paid/unpaid badge and status toggle.
+// Cashier's own orders — read-only kitchen status (preparing / completed).
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { getCashierOrders, updateOrderStatus } from '../../services/api'
+import { getCashierOrders } from '../../services/api'
+
+const STATUS_META = {
+  preparing: { label: 'Preparing', icon: 'bi-fire',          cls: 'bg-warning text-dark' },
+  completed: { label: 'Completed', icon: 'bi-check-circle',  cls: 'bg-success'           },
+  paid:      { label: 'Paid',      icon: 'bi-check-circle',  cls: 'bg-success'           },
+  unpaid:    { label: 'Unpaid',    icon: 'bi-clock',         cls: 'bg-warning text-dark' },
+}
 
 export default function OrderList() {
   const [orders,  setOrders]  = useState([])
@@ -23,18 +30,6 @@ export default function OrderList() {
   }, [])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
-
-  const toggleStatus = async (order) => {
-    const next = order.status === 'paid' ? 'unpaid' : 'paid'
-    try {
-      await updateOrderStatus(order.id, next)
-      setOrders((prev) =>
-        prev.map((o) => o.id === order.id ? { ...o, status: next } : o)
-      )
-    } catch {
-      alert('Failed to update order status.')
-    }
-  }
 
   return (
     <div>
@@ -74,26 +69,15 @@ export default function OrderList() {
                     </span>
                   </div>
                   <div className="d-flex align-items-center gap-2">
-                    <span
-                      className={`badge fs-6 ${
-                        order.status === 'paid'
-                          ? 'bg-success'
-                          : 'bg-warning text-dark'
-                      }`}
-                    >
-                      {order.status === 'paid' ? (
-                        <><i className="bi bi-check-circle me-1" />Paid</>
-                      ) : (
-                        <><i className="bi bi-clock me-1" />Unpaid</>
-                      )}
-                    </span>
-                    <button
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => toggleStatus(order)}
-                      title="Toggle status"
-                    >
-                      <i className="bi bi-arrow-repeat" />
-                    </button>
+                    {(() => {
+                      const meta = STATUS_META[order.status] ?? STATUS_META.preparing
+                      return (
+                        <span className={`badge fs-6 ${meta.cls}`}>
+                          <i className={`bi ${meta.icon} me-1`} />
+                          {meta.label}
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
 
