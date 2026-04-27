@@ -9,7 +9,6 @@ import AdminProducts  from '../components/admin/AdminProducts'
 import AdminAnalytics from '../components/admin/AdminAnalytics'
 import AdminUsers     from '../components/admin/AdminUsers'
 import AdminOrders    from '../components/admin/AdminOrders'
-import NotificationBell from '../components/NotificationBell'
 import { getAdminOrders } from '../services/api'
 
 const SIDEBAR_WIDTH = 230
@@ -56,11 +55,12 @@ export default function AdminLayout() {
     const now = Date.now()
     localStorage.setItem(LAST_SEEN_KEY, String(now))
     setLastSeen(now)
-    // Keep current items visible in the dropdown until next poll
+    setNotifItems([])
   }
 
-  const handleNotifItemClick = () => {
-    navigate('/admin/orders')
+  const handleOrdersClick = () => {
+    handleNotifOpen()
+    closeDrawer()
   }
 
   const handleLogout = async () => {
@@ -90,17 +90,7 @@ export default function AdminLayout() {
           <i className="bi bi-cart-check-fill text-primary" />
           Order Tracker
         </span>
-        <div className="d-flex align-items-center gap-2">
-          <NotificationBell
-            count={notifItems.length}
-            items={notifItems}
-            onOpen={handleNotifOpen}
-            onItemClick={handleNotifItemClick}
-            title="New orders"
-            emptyText="No new orders right now"
-          />
-          <span className="badge bg-primary">Admin</span>
-        </div>
+        <span className="badge bg-primary">Admin</span>
       </nav>
 
       {/* ── Backdrop (mobile drawer only) ── */}
@@ -144,17 +134,6 @@ export default function AdminLayout() {
             </div>
           </div>
           <div className="d-flex align-items-center gap-2">
-            {/* Bell visible on desktop sidebar */}
-            <div className="d-none d-lg-block">
-              <NotificationBell
-                count={notifItems.length}
-                items={notifItems}
-                onOpen={handleNotifOpen}
-                onItemClick={handleNotifItemClick}
-                title="New orders"
-                emptyText="No new orders right now"
-              />
-            </div>
             {/* Close button visible only on mobile */}
             <button
               type="button"
@@ -167,17 +146,32 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <nav className="p-2 flex-grow-1" onClick={closeDrawer}>
-          <NavLink to="/admin/analytics" className={navClass}>
+        <nav className="p-2 flex-grow-1">
+          <NavLink to="/admin/analytics" className={navClass} onClick={closeDrawer}>
             <i className="bi bi-bar-chart-line" /> Analytics
           </NavLink>
-          <NavLink to="/admin/orders" className={navClass}>
-            <i className="bi bi-receipt-cutoff" /> Orders
+          <NavLink
+            to="/admin/orders"
+            className={navClass}
+            onClick={handleOrdersClick}
+            style={{ position: 'relative' }}
+          >
+            <i className="bi bi-receipt-cutoff" />
+            <span>Orders</span>
+            {notifItems.length > 0 && (
+              <span
+                className="badge rounded-pill bg-danger ms-auto"
+                style={{ fontSize: '0.7rem', minWidth: 22 }}
+                aria-label={`${notifItems.length} new orders`}
+              >
+                {notifItems.length > 99 ? '99+' : notifItems.length}
+              </span>
+            )}
           </NavLink>
-          <NavLink to="/admin/products" className={navClass}>
+          <NavLink to="/admin/products" className={navClass} onClick={closeDrawer}>
             <i className="bi bi-box-seam" /> Products
           </NavLink>
-          <NavLink to="/admin/users" className={navClass}>
+          <NavLink to="/admin/users" className={navClass} onClick={closeDrawer}>
             <i className="bi bi-people" /> Cashiers
           </NavLink>
         </nav>
