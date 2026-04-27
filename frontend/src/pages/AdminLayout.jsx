@@ -3,7 +3,7 @@
 // On <lg the sidebar becomes a slide-in drawer toggled by a hamburger button.
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { NavLink, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { NavLink, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AdminProducts  from '../components/admin/AdminProducts'
 import AdminAnalytics from '../components/admin/AdminAnalytics'
@@ -18,6 +18,7 @@ const LAST_SEEN_KEY = 'admin_orders_last_seen'
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const navigate         = useNavigate()
+  const location         = useLocation()
   const [open, setOpen]  = useState(false)
 
   // ── New-order notifications ────────────────────────────────────────────────
@@ -51,17 +52,22 @@ export default function AdminLayout() {
     return () => clearInterval(t)
   }, [fetchNotifs])
 
-  const handleNotifOpen = () => {
+  const handleNotifOpen = useCallback(() => {
     const now = Date.now()
     localStorage.setItem(LAST_SEEN_KEY, String(now))
     setLastSeen(now)
     setNotifItems([])
-  }
+  }, [])
 
-  const handleOrdersClick = () => {
-    handleNotifOpen()
-    closeDrawer()
-  }
+  // When the admin sits on the Orders page, mark notifications as seen
+  // after a brief 3s delay so the red pill is actually visible on arrival
+  // (instead of clearing instantly on click).
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/orders') && notifItems.length > 0) {
+      const t = setTimeout(handleNotifOpen, 3000)
+      return () => clearTimeout(t)
+    }
+  }, [location.pathname, notifItems.length, handleNotifOpen])
 
   const handleLogout = async () => {
     await logout()
@@ -153,7 +159,7 @@ export default function AdminLayout() {
           <NavLink
             to="/admin/orders"
             className={navClass}
-            onClick={handleOrdersClick}
+            onClick={closeDrawer}
             style={{ position: 'relative' }}
           >
             <i className="bi bi-receipt-cutoff" />
