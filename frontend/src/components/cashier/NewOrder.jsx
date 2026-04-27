@@ -135,7 +135,10 @@ export default function NewOrder() {
   }
 
   return (
-    <div className="row g-4">
+    <div
+      className="row g-4"
+      style={cart.length > 0 ? { paddingBottom: 96 } : undefined}
+    >
       {/* ── Product Grid ── */}
       <div className="col-lg-8">
         <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -380,6 +383,43 @@ export default function NewOrder() {
           order={receiptOrder}
           onClose={() => setReceiptOrder(null)}
         />
+      )}
+
+      {/* ── Mobile sticky send bar (only <lg) ── */}
+      {cart.length > 0 && (
+        <div
+          className="d-lg-none position-fixed start-0 end-0 bg-white border-top shadow-lg"
+          style={{
+            bottom: 0,
+            zIndex: 1030,
+            padding: '0.6rem 0.9rem calc(0.6rem + env(safe-area-inset-bottom)) 0.9rem',
+          }}
+        >
+          <div className="d-flex align-items-center gap-2">
+            <div className="flex-grow-1">
+              <div className="small text-muted lh-1">
+                <i className="bi bi-basket me-1" />
+                {cart.reduce((s, i) => s + i.quantity, 0)} item(s)
+              </div>
+              <div className="fw-bold text-primary" style={{ fontSize: '1.05rem' }}>
+                ₱{total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary px-3"
+              onClick={handleSubmit}
+              disabled={submitting || cart.length === 0 || !customerName.trim()}
+              title={!customerName.trim() ? 'Enter customer name first' : ''}
+            >
+              {submitting
+                ? <span className="spinner-border spinner-border-sm me-2" />
+                : <i className="bi bi-send me-2" />
+              }
+              Send to Kitchen
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
