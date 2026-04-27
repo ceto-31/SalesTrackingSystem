@@ -254,6 +254,7 @@ export default function NewOrder() {
                 Customer Name <span className="text-danger">*</span>
               </label>
               <input
+                id="cashier-customer-name"
                 type="text"
                 className={`form-control ${
                   customerName.trim() === '' ? 'border-danger' : ''
@@ -408,9 +409,18 @@ export default function NewOrder() {
             <button
               type="button"
               className="btn btn-primary px-3"
-              onClick={handleSubmit}
-              disabled={submitting || cart.length === 0 || !customerName.trim()}
-              title={!customerName.trim() ? 'Enter customer name first' : ''}
+              onClick={(e) => {
+                if (!customerName.trim()) {
+                  const el = document.getElementById('cashier-customer-name')
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    setTimeout(() => el.focus(), 350)
+                  }
+                  return
+                }
+                handleSubmit(e)
+              }}
+              disabled={submitting || cart.length === 0}
             >
               {submitting
                 ? <span className="spinner-border spinner-border-sm me-2" />
