@@ -109,4 +109,7 @@ export const updateOrderStatus = (id, status) =>
 export const getProducts = () =>
   api.get('/shared/products.php')
 
+export const getTopProducts = (days = 30) =>
+  api.get('/shared/top-products.php', { params: { days } })
+
 export default api

@@ -2,7 +2,7 @@
 // Admin kitchen workflow: Preparing / Completed / Cancelled tabs.
 // Admin can cancel/restore individual quantities of a line item.
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getAdminOrders,
   completeOrder,
@@ -198,6 +198,7 @@ export default function AdminOrders() {
   const [orders,      setOrders]      = useState([])
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
+  const [search,      setSearch]      = useState('')
   const [acting,      setActing]      = useState(0)
   const [busyItemId,  setBusyItemId]  = useState(0)
 
@@ -309,6 +310,16 @@ export default function AdminOrders() {
     </li>
   )
 
+  const filteredOrders = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return orders
+    return orders.filter((o) => {
+      if (String(o.id).includes(q)) return true
+      if ((o.customer_name || '').toLowerCase().includes(q)) return true
+      return false
+    })
+  }, [orders, search])
+
   return (
     <div>
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -327,6 +338,20 @@ export default function AdminOrders() {
         {tabBtn('cancelled', 'bi-x-octagon', 'Cancelled')}
       </ul>
 
+      <div className="input-group input-group-sm mb-3" style={{ maxWidth: 320 }}>
+        <span className="input-group-text bg-white">
+          <i className="bi bi-search" />
+        </span>
+        <input
+          type="search"
+          className="form-control"
+          placeholder="Search by #order or customer name…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search orders"
+        />
+      </div>
+
       {error && <div className="alert alert-danger">{error}</div>}
 
       {loading ? (
@@ -338,9 +363,14 @@ export default function AdminOrders() {
           <i className="bi bi-inbox fs-1 d-block mb-2" />
           No {tab} orders.
         </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center text-muted py-5">
+          <i className="bi bi-search fs-1 d-block mb-2" />
+          No {tab} orders match “{search}”.
+        </div>
       ) : (
         <div className="d-flex flex-column gap-3">
-          {orders.map((o) => {
+          {filteredOrders.map((o) => {
             const remaining = (o.items ?? []).reduce(
               (s, it) => s + Math.max(0, it.quantity - (it.cancelled_quantity ?? 0)),
               0,

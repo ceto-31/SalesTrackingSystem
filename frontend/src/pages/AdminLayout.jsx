@@ -2,20 +2,66 @@
 // Responsive sidebar layout wrapper for all admin pages.
 // On <lg the sidebar becomes a slide-in drawer toggled by a hamburger button.
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { NavLink, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AdminProducts  from '../components/admin/AdminProducts'
 import AdminAnalytics from '../components/admin/AdminAnalytics'
 import AdminUsers     from '../components/admin/AdminUsers'
 import AdminOrders    from '../components/admin/AdminOrders'
+import NotificationBell from '../components/NotificationBell'
+import { getAdminOrders } from '../services/api'
 
 const SIDEBAR_WIDTH = 230
+const NOTIF_POLL_MS = 15000
+const LAST_SEEN_KEY = 'admin_orders_last_seen'
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const navigate         = useNavigate()
   const [open, setOpen]  = useState(false)
+
+  // ── New-order notifications ────────────────────────────────────────────────
+  const [notifItems, setNotifItems] = useState([])
+  const [lastSeen, setLastSeen] = useState(
+    () => Number(localStorage.getItem(LAST_SEEN_KEY)) || 0,
+  )
+
+  const fetchNotifs = useCallback(async () => {
+    try {
+      const { data } = await getAdminOrders('preparing')
+      const items = (data || [])
+        .filter((o) => new Date(o.created_at).getTime() > lastSeen)
+        .map((o) => ({
+          id: o.id,
+          title: `New order #${o.id} — ${o.customer_name}`,
+          subtitle: new Date(o.created_at).toLocaleString('en-PH', {
+            month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+          }),
+        }))
+      setNotifItems(items)
+    } catch {
+      // silent — polling will retry
+    }
+  }, [lastSeen])
+
+  useEffect(() => { fetchNotifs() }, [fetchNotifs])
+  useEffect(() => {
+    const t = setInterval(fetchNotifs, NOTIF_POLL_MS)
+    return () => clearInterval(t)
+  }, [fetchNotifs])
+
+  const handleNotifOpen = () => {
+    const now = Date.now()
+    localStorage.setItem(LAST_SEEN_KEY, String(now))
+    setLastSeen(now)
+    // Keep current items visible in the dropdown until next poll
+  }
+
+  const handleNotifItemClick = () => {
+    navigate('/admin/orders')
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -44,7 +90,17 @@ export default function AdminLayout() {
           <i className="bi bi-cart-check-fill text-primary" />
           Order Tracker
         </span>
-        <span className="badge bg-primary">Admin</span>
+        <div className="d-flex align-items-center gap-2">
+          <NotificationBell
+            count={notifItems.length}
+            items={notifItems}
+            onOpen={handleNotifOpen}
+            onItemClick={handleNotifItemClick}
+            title="New orders"
+            emptyText="No new orders right now"
+          />
+          <span className="badge bg-primary">Admin</span>
+        </div>
       </nav>
 
       {/* ── Backdrop (mobile drawer only) ── */}
@@ -87,15 +143,28 @@ export default function AdminLayout() {
               <span className="badge bg-primary ms-2">Admin</span>
             </div>
           </div>
-          {/* Close button visible only on mobile */}
-          <button
-            type="button"
-            className="btn btn-sm btn-link text-secondary p-0 d-lg-none"
-            aria-label="Close menu"
-            onClick={closeDrawer}
-          >
-            <i className="bi bi-x-lg fs-5" />
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            {/* Bell visible on desktop sidebar */}
+            <div className="d-none d-lg-block">
+              <NotificationBell
+                count={notifItems.length}
+                items={notifItems}
+                onOpen={handleNotifOpen}
+                onItemClick={handleNotifItemClick}
+                title="New orders"
+                emptyText="No new orders right now"
+              />
+            </div>
+            {/* Close button visible only on mobile */}
+            <button
+              type="button"
+              className="btn btn-sm btn-link text-secondary p-0 d-lg-none"
+              aria-label="Close menu"
+              onClick={closeDrawer}
+            >
+              <i className="bi bi-x-lg fs-5" />
+            </button>
+          </div>
         </div>
 
         <nav className="p-2 flex-grow-1" onClick={closeDrawer}>

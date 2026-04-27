@@ -1,7 +1,7 @@
 // src/components/admin/AdminProducts.jsx
 // Product management: list, add, edit, delete.
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { getAdminProducts, deleteProduct } from '../../services/api'
 import ProductForm from './ProductForm'
 
@@ -10,6 +10,7 @@ export default function AdminProducts() {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState('')
   const [modal,    setModal]    = useState(null)  // null | 'create' | product object
+  const [search,   setSearch]   = useState('')
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -41,16 +42,41 @@ export default function AdminProducts() {
     fetchProducts()
   }
 
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return products
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.variety || '').toLowerCase().includes(q),
+    )
+  }, [products, search])
+
   return (
     <div>
-      <div className="d-flex align-items-center justify-content-between mb-4">
+      <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
         <h4 className="fw-bold mb-0">
           <i className="bi bi-box-seam me-2 text-primary" />
           Products
         </h4>
-        <button className="btn btn-primary" onClick={() => setModal('create')}>
-          <i className="bi bi-plus-lg me-1" /> Add Product
-        </button>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="input-group input-group-sm" style={{ maxWidth: 240 }}>
+            <span className="input-group-text bg-white">
+              <i className="bi bi-search" />
+            </span>
+            <input
+              type="search"
+              className="form-control"
+              placeholder="Search name or category…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search products"
+            />
+          </div>
+          <button className="btn btn-primary" onClick={() => setModal('create')}>
+            <i className="bi bi-plus-lg me-1" /> Add Product
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -63,6 +89,11 @@ export default function AdminProducts() {
         <div className="text-center text-muted py-5">
           <i className="bi bi-box fs-1 d-block mb-2" />
           No products yet. Click "Add Product" to get started.
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="text-center text-muted py-5">
+          <i className="bi bi-search fs-1 d-block mb-2" />
+          No products match “{search}”.
         </div>
       ) : (
         <div className="card border-0 shadow-sm">
@@ -79,7 +110,7 @@ export default function AdminProducts() {
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
+                {filteredProducts.map((p) => (
                   <tr key={p.id}>
                     <td>
                       {p.image ? (

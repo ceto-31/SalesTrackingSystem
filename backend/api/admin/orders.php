@@ -47,6 +47,10 @@ if ($method === 'GET') {
         $params = [$status];
     }
 
+    // Preparing tab is FIFO (oldest first) so older pending orders aren't
+    // buried by incoming ones. Other tabs stay newest-first.
+    $orderDirection = ($status === 'preparing') ? 'ASC' : 'DESC';
+
     $sql = "SELECT
                 o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.notes, o.created_at,
                 u.username AS cashier_name,
@@ -68,7 +72,7 @@ if ($method === 'GET') {
            WHERE $where
            GROUP BY o.id
           HAVING $having
-           ORDER BY o.created_at DESC";
+           ORDER BY o.created_at $orderDirection";
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
