@@ -25,7 +25,12 @@ export default function OrderList() {
     setError('')
     try {
       const { data } = await getCashierOrders()
-      setOrders(data)
+      if (Array.isArray(data)) {
+        setOrders(data)
+      } else {
+        setOrders([])
+        setError(`Failed to load orders. ${data?.error || 'Unexpected response.'}`)
+      }
     } catch {
       setError('Failed to load orders.')
     } finally {

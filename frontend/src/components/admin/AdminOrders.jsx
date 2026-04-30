@@ -206,7 +206,14 @@ export default function AdminOrders() {
     setError('')
     try {
       const { data } = await getAdminOrders(tab)
-      setOrders(data)
+      // Defensive: backend should return an array; if it returned an error
+      // object (e.g. missing column), don't blank the page.
+      if (Array.isArray(data)) {
+        setOrders(data)
+      } else {
+        setOrders([])
+        setError(`Failed to load orders. ${data?.error || 'Unexpected response.'}`)
+      }
     } catch (err) {
       const status = err?.response?.status
       const detail = err?.response?.data?.error || err?.message || 'Unknown error'
