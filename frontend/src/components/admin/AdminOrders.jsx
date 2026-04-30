@@ -126,17 +126,17 @@ function OrderCard({
                   )}
                 </div>
 
-                <div className="text-end" style={{ minWidth: 110 }}>
-                  <div className="small text-muted">
-                    ₱{fmtMoney(item.unit_price)} × {activeQty}
+                <div className="text-end" style={{ minWidth: 130 }}>
+                  <div className="fw-bold text-dark" style={{ fontSize: '1.05rem', lineHeight: 1.2 }}>
+                    ₱{fmtMoney(item.unit_price)} <span className="text-muted">×</span> {activeQty}
                     {cancelledQty > 0 && (
-                      <span className="text-danger ms-1">
+                      <span className="text-danger ms-1 small">
                         (of {item.quantity})
                       </span>
                     )}
                   </div>
                   <div
-                    className="fw-bold text-primary"
+                    className="text-primary small"
                     style={{ textDecoration: isLineFullyCancelled ? 'line-through' : 'none' }}
                   >
                     ₱{fmtMoney(lineTotal)}
