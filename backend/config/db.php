@@ -4,6 +4,9 @@
 
 declare(strict_types=1);
 
+// Ensure all PHP date/time functions use Philippine time (UTC+08:00).
+date_default_timezone_set('Asia/Manila');
+
 function getDB(): PDO
 {
     static $pdo = null;
@@ -25,6 +28,10 @@ function getDB(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+
+        // Force this connection's session timezone to Philippine time so
+        // CURRENT_TIMESTAMP inserts and TIMESTAMP reads are aligned to PH.
+        $pdo->exec("SET time_zone = '+08:00'");
     }
 
     return $pdo;
