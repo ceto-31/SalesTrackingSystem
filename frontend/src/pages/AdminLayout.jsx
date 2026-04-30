@@ -2,7 +2,7 @@
 // Responsive sidebar layout wrapper for all admin pages.
 // On <lg the sidebar becomes a slide-in drawer toggled by a hamburger button.
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { NavLink, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AdminProducts  from '../components/admin/AdminProducts'
@@ -26,6 +26,16 @@ export default function AdminLayout() {
   const [lastSeen, setLastSeen] = useState(
     () => Number(localStorage.getItem(LAST_SEEN_KEY)) || 0,
   )
+  const prevCountRef = useRef(0)
+  const audioRef = useRef(null)
+
+  // Lazy-init the audio element once.
+  useEffect(() => {
+    const a = new Audio('/sounds/notificationBuzzer.mp3')
+    a.preload = 'auto'
+    a.volume = 0.7
+    audioRef.current = a
+  }, [])
 
   const fetchNotifs = useCallback(async () => {
     try {
@@ -51,6 +61,23 @@ export default function AdminLayout() {
     const t = setInterval(fetchNotifs, NOTIF_POLL_MS)
     return () => clearInterval(t)
   }, [fetchNotifs])
+
+  // Play a buzzer when the unseen-order count grows.
+  useEffect(() => {
+    const prev = prevCountRef.current
+    const curr = notifItems.length
+    if (curr > prev && audioRef.current) {
+      try {
+        audioRef.current.currentTime = 0
+        const p = audioRef.current.play()
+        if (p && typeof p.catch === 'function') {
+          // Autoplay may be blocked until the user interacts with the tab.
+          p.catch(() => { /* silent */ })
+        }
+      } catch { /* silent */ }
+    }
+    prevCountRef.current = curr
+  }, [notifItems.length])
 
   const handleNotifOpen = useCallback(() => {
     const now = Date.now()
