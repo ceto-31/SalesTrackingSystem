@@ -212,6 +212,16 @@ if ($method === 'PUT') {
     }
 
     $db->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
+
+    // Auto-mark as paid when completing an order that has no payment yet:
+    // tendered = total, change = 0. Existing amount_paid (cash already
+    // entered up front by cashier) is preserved.
+    if ($status === 'completed') {
+        $db->prepare(
+            'UPDATE orders SET amount_paid = total_amount WHERE id = ? AND amount_paid IS NULL'
+        )->execute([$id]);
+    }
+
     echo json_encode(['id' => $id, 'status' => $status]);
     exit;
 }
