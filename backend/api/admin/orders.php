@@ -52,7 +52,7 @@ if ($method === 'GET') {
     $orderDirection = ($status === 'preparing') ? 'ASC' : 'DESC';
 
     $sql = "SELECT
-                o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.notes, o.created_at,
+                o.id, o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -91,6 +91,9 @@ if ($method === 'GET') {
         unset($it);
         $order['items']        = $items;
         $order['total_amount'] = $effectiveTotal;
+        $order['amount_paid']  = isset($order['amount_paid']) && $order['amount_paid'] !== null
+            ? (float)$order['amount_paid']
+            : null;
     }
 
     echo json_encode($orders);

@@ -19,6 +19,8 @@ export default function NewOrder() {
   const [notes,         setNotes]         = useState('')
   const [search,        setSearch]        = useState('')
   const [topRanks,      setTopRanks]      = useState({})  // { productId: rank (1-based) }
+  const [paymentMode,   setPaymentMode]   = useState('unpaid') // 'unpaid' | 'paid'
+  const [tendered,      setTendered]      = useState('')
 
   useEffect(() => {
     getTopProducts(30)
@@ -110,6 +112,15 @@ export default function NewOrder() {
       alert('Add at least one product to the order.')
       return
     }
+    let amountPaid = null
+    if (paymentMode === 'paid') {
+      const t = parseFloat(tendered)
+      if (Number.isNaN(t) || t < total) {
+        setError('Amount tendered must be at least the total.')
+        return
+      }
+      amountPaid = t
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -119,12 +130,15 @@ export default function NewOrder() {
         cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
         orderType,
         notes.trim(),
+        amountPaid,
       )
       setReceiptOrder(data)
       setCart([])
       setCustomerName('')
       setOrderType('dine_in')
       setNotes('')
+      setPaymentMode('unpaid')
+      setTendered('')
       setSuccessMsg('Order sent to kitchen!')
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
@@ -313,6 +327,61 @@ export default function NewOrder() {
               />
             </div>
 
+            {/* Payment mode toggle */}
+            <div className="mb-3">
+              <label className="form-label fw-semibold small d-block">Payment</label>
+              <div className="btn-group w-100" role="group" aria-label="Payment mode">
+                <button
+                  type="button"
+                  className={`btn ${paymentMode === 'unpaid' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => { setPaymentMode('unpaid'); setTendered('') }}
+                >
+                  <i className="bi bi-clock me-1" /> Unpaid
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${paymentMode === 'paid' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setPaymentMode('paid')}
+                >
+                  <i className="bi bi-cash-coin me-1" /> Paid
+                </button>
+              </div>
+
+              {paymentMode === 'paid' && (() => {
+                const t = parseFloat(tendered)
+                const valid = !Number.isNaN(t)
+                const change = valid ? t - total : 0
+                const isShort = valid && change < 0
+                return (
+                  <div className="mt-2">
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text">₱</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        className={`form-control ${isShort ? 'border-danger' : ''}`}
+                        placeholder="Amount tendered"
+                        value={tendered}
+                        onChange={(e) => setTendered(e.target.value)}
+                      />
+                    </div>
+                    <div className="d-flex justify-content-between mt-1 small">
+                      <span className="text-muted">Change</span>
+                      <span className={isShort ? 'text-danger fw-bold' : 'text-success fw-bold'}>
+                        {!valid
+                          ? '—'
+                          : isShort
+                            ? `Insufficient (short ₱${Math.abs(change).toLocaleString('en-PH', { minimumFractionDigits: 2 })})`
+                            : `₱${change.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
             {/* Total + Send button — placed RIGHT AFTER order details so the
                 button is visible without scrolling past a long cart list. */}
             <div
@@ -329,7 +398,12 @@ export default function NewOrder() {
                 <button
                   type="submit"
                   className="btn btn-primary w-100"
-                  disabled={submitting || cart.length === 0 || !customerName.trim()}
+                  disabled={
+                    submitting ||
+                    cart.length === 0 ||
+                    !customerName.trim() ||
+                    (paymentMode === 'paid' && (Number.isNaN(parseFloat(tendered)) || parseFloat(tendered) < total))
+                  }
                 >
                   {submitting
                     ? <span className="spinner-border spinner-border-sm me-2" />

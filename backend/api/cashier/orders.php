@@ -28,7 +28,7 @@ $db     = getDB();
 if ($method === 'GET') {
     $stmt = $db->prepare(
         "SELECT
-             o.id, o.customer_name, o.total_amount, o.status, o.order_type, o.notes, o.created_at,
+             o.id, o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
                      'item_id',            oi.id,
@@ -53,16 +53,25 @@ if ($method === 'GET') {
     foreach ($orders as &$order) {
         $items = json_decode($order['items'], true) ?: [];
         $effectiveTotal = 0.0;
+        $totalActiveQty = 0;
         foreach ($items as &$it) {
             $it['quantity']           = (int)$it['quantity'];
             $it['cancelled_quantity'] = (int)($it['cancelled_quantity'] ?? 0);
             $it['unit_price']         = (float)$it['unit_price'];
             $active = max(0, $it['quantity'] - $it['cancelled_quantity']);
+            $totalActiveQty += $active;
             $effectiveTotal += $it['unit_price'] * $active;
         }
         unset($it);
         $order['items']        = $items;
         $order['total_amount'] = $effectiveTotal;
+        $order['amount_paid']  = isset($order['amount_paid']) && $order['amount_paid'] !== null
+            ? (float)$order['amount_paid']
+            : null;
+        // Virtual 'cancelled' status: every line fully cancelled.
+        if ($totalActiveQty === 0) {
+            $order['status'] = 'cancelled';
+        }
     }
 
     echo json_encode($orders);
@@ -84,6 +93,9 @@ if ($method === 'POST') {
         $notes = null;
     }
     $items        = $body['items']      ?? [];
+    // Optional: amount tendered when paid up front. NULL = unpaid.
+    $amountPaidRaw = $body['amount_paid'] ?? null;
+    $amountPaid    = ($amountPaidRaw === null || $amountPaidRaw === '') ? null : (float)$amountPaidRaw;
 
     if ($customerName === '') {
         http_response_code(400);
@@ -147,10 +159,17 @@ if ($method === 'POST') {
     // Insert order + items in a transaction
     $db->beginTransaction();
     try {
+        if ($amountPaid !== null && $amountPaid < $total) {
+            $db->rollBack();
+            http_response_code(422);
+            echo json_encode(['error' => 'amount_paid must be >= total']);
+            exit;
+        }
+
         $orderStmt = $db->prepare(
-            'INSERT INTO orders (cashier_id, customer_name, total_amount, status, order_type, notes) VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO orders (cashier_id, customer_name, total_amount, amount_paid, status, order_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        $orderStmt->execute([$cashier['id'], $customerName, $total, $status, $orderType, $notes]);
+        $orderStmt->execute([$cashier['id'], $customerName, $total, $amountPaid, $status, $orderType, $notes]);
         $orderId = (int)$db->lastInsertId();
 
         $itemStmt = $db->prepare(
@@ -194,6 +213,7 @@ if ($method === 'POST') {
         'customer_name' => $customerName,
         'cashier_name'  => $cashier['username'],
         'total_amount'  => $total,
+        'amount_paid'   => $amountPaid,
         'status'        => $status,
         'order_type'    => $orderType,
         'notes'         => $notes,

@@ -92,13 +92,14 @@ export const getCategories = () =>
 export const getCashierOrders = () =>
   api.get('/cashier/orders.php')
 
-export const createOrder = (customerName, status, items, orderType = 'dine_in', notes = '') =>
+export const createOrder = (customerName, status, items, orderType = 'dine_in', notes = '', amountPaid = null) =>
   api.post('/cashier/orders.php', {
     customer_name: customerName,
     status,
     order_type: orderType,
     notes,
     items,
+    amount_paid: amountPaid,
   })
 
 export const updateOrderStatus = (id, status) =>
