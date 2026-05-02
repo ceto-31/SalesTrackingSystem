@@ -23,10 +23,20 @@ try {
     $db = getDB();
     $log = [];
 
+    // 0. Ensure orders.amount_paid exists (newer column — may be missing on
+    //    older deployments).
+    $hasAmt = $db->query("SHOW COLUMNS FROM orders LIKE 'amount_paid'")->fetch();
+    if ($hasAmt === false) {
+        $db->exec("ALTER TABLE orders ADD COLUMN amount_paid DECIMAL(10,2) NULL AFTER total_amount");
+        $log[] = 'Added orders.amount_paid';
+    } else {
+        $log[] = 'orders.amount_paid already exists';
+    }
+
     // 1. Add daily_seq column if missing
     $col = $db->query("SHOW COLUMNS FROM orders LIKE 'daily_seq'")->fetch();
     if ($col === false) {
-        $db->exec("ALTER TABLE orders ADD COLUMN daily_seq INT UNSIGNED NOT NULL DEFAULT 0 AFTER amount_paid");
+        $db->exec("ALTER TABLE orders ADD COLUMN daily_seq INT UNSIGNED NOT NULL DEFAULT 0");
         $log[] = 'Added orders.daily_seq';
     } else {
         $log[] = 'orders.daily_seq already exists';
@@ -75,5 +85,7 @@ try {
 } catch (Exception $e) {
     error_log('migrate-hardening: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Migration failed']);
+    // Token-guarded endpoint — safe to surface the underlying SQL error so the
+    // operator can fix it without trawling Railway logs.
+    echo json_encode(['ok' => false, 'error' => 'Migration failed', 'detail' => $e->getMessage()]);
 }
