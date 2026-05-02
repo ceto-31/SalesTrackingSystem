@@ -205,23 +205,28 @@ export default function AdminOrders() {
   const [purging,     setPurging]     = useState(false)
   const [purgeMsg,    setPurgeMsg]    = useState('')
 
-  // Auto-purge: once per day per browser, silently delete orders older than
-  // 3 days OR beyond the most recent 90. Keeps storage lean without bothering
-  // the admin. A manual "Cleanup now" button is also exposed below.
-  useEffect(() => {
-    const KEY = 'admin_last_autopurge'
-    const last = Number(localStorage.getItem(KEY) || 0)
-    const ONE_DAY = 24 * 60 * 60 * 1000
-    if (Date.now() - last < ONE_DAY) return
-    purgeOldOrders(3, 90)
-      .then(() => localStorage.setItem(KEY, String(Date.now())))
-      .catch(() => { /* silent — manual button still available */ })
-  }, [])
+  // Auto-purge DISABLED — it was hard-deleting historical orders, which
+  // also wiped Analytics history. Keep the manual button gated behind a
+  // strong confirmation in case storage truly fills up, but never run it
+  // automatically in the background.
+  // useEffect(() => {
+  //   const KEY = 'admin_last_autopurge'
+  //   const last = Number(localStorage.getItem(KEY) || 0)
+  //   const ONE_DAY = 24 * 60 * 60 * 1000
+  //   if (Date.now() - last < ONE_DAY) return
+  //   purgeOldOrders(3, 90)
+  //     .then(() => localStorage.setItem(KEY, String(Date.now())))
+  //     .catch(() => {})
+  // }, [])
 
   const handleManualPurge = async () => {
     if (!window.confirm(
-      'Delete orders older than 3 days AND keep only the most recent 90?\n\n' +
-      'This permanently removes old order history to save storage.'
+      'DANGER: This permanently deletes old orders AND removes them from Analytics history.\n\n' +
+      'Only proceed if you have a recent database backup.\n\n' +
+      'Continue?'
+    )) return
+    if (!window.confirm(
+      'Are you absolutely sure? Deleted orders cannot be recovered from the app.'
     )) return
     setPurging(true)
     setPurgeMsg('')
