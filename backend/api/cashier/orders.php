@@ -167,7 +167,10 @@ if ($method === 'POST') {
         }
 
         $orderStmt = $db->prepare(
-            'INSERT INTO orders (cashier_id, customer_name, total_amount, amount_paid, status, order_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO orders (cashier_id, customer_name, total_amount, amount_paid, daily_seq, status, order_type, notes)
+             VALUES (?, ?, ?, ?,
+                     COALESCE((SELECT s.next FROM (SELECT MAX(daily_seq) + 1 AS next FROM orders WHERE DATE(created_at) = CURDATE()) AS s), 1),
+                     ?, ?, ?)'
         );
         $orderStmt->execute([$cashier['id'], $customerName, $total, $amountPaid, $status, $orderType, $notes]);
         $orderId = (int)$db->lastInsertId();

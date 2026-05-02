@@ -53,9 +53,7 @@ if ($method === 'GET') {
 
     $sql = "SELECT
                 o.id,
-                (SELECT COUNT(*) FROM orders o2
-                  WHERE DATE(o2.created_at) = DATE(o.created_at)
-                    AND o2.id <= o.id) AS daily_seq,
+                o.daily_seq,
                 o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(

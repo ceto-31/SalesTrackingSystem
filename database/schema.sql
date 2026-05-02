@@ -40,12 +40,17 @@ CREATE TABLE IF NOT EXISTS orders (
   cashier_id    INT UNSIGNED    NOT NULL,
   customer_name VARCHAR(150)    NOT NULL,
   total_amount  DECIMAL(10,2)   NOT NULL DEFAULT 0.00,
+  amount_paid   DECIMAL(10,2)   NULL,
+  daily_seq     INT UNSIGNED    NOT NULL DEFAULT 0,
   status        ENUM('unpaid','paid','preparing','completed') NOT NULL DEFAULT 'unpaid',
   order_type    ENUM('dine_in','takeout') NOT NULL DEFAULT 'dine_in',
   notes         VARCHAR(255)    NULL,
   created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_cashier FOREIGN KEY (cashier_id)
-    REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+    REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  INDEX idx_orders_cashier_id (cashier_id),
+  INDEX idx_orders_created_at (created_at),
+  INDEX idx_orders_status     (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ------------------------------------------------------------
@@ -62,7 +67,9 @@ CREATE TABLE IF NOT EXISTS order_items (
   CONSTRAINT fk_items_order   FOREIGN KEY (order_id)
     REFERENCES orders(id)   ON DELETE CASCADE  ON UPDATE CASCADE,
   CONSTRAINT fk_items_product FOREIGN KEY (product_id)
-    REFERENCES products(id) ON DELETE RESTRICT ON UPDATE CASCADE
+    REFERENCES products(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  INDEX idx_items_order_id   (order_id),
+  INDEX idx_items_product_id (product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ------------------------------------------------------------

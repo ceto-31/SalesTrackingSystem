@@ -32,13 +32,18 @@ function handleImageUpload(): ?string
         return null;
     }
 
-    $allowed    = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    $maxBytes   = 5 * 1024 * 1024; // 5 MB
-    $file       = $_FILES['image'];
+    $file     = $_FILES['image'];
+    $maxBytes = 5 * 1024 * 1024; // 5 MB
 
-    if (!in_array($file['type'], $allowed, true)) {
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
         http_response_code(422);
-        echo json_encode(['error' => 'Image must be JPEG, PNG, WebP, or GIF']);
+        echo json_encode(['error' => 'Image upload failed']);
+        exit;
+    }
+
+    if (!is_uploaded_file($file['tmp_name'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid upload']);
         exit;
     }
 
@@ -48,13 +53,44 @@ function handleImageUpload(): ?string
         exit;
     }
 
+    // Trust only what the file actually contains, never the client-provided
+    // MIME type or extension.
+    $allowed = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp',
+        'image/gif'  => 'gif',
+    ];
+
+    $finfo      = finfo_open(FILEINFO_MIME_TYPE);
+    $actualType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (!isset($allowed[$actualType])) {
+        http_response_code(422);
+        echo json_encode(['error' => 'Image must be JPEG, PNG, WebP, or GIF']);
+        exit;
+    }
+
+    // getimagesize returns false for non-images / corrupt files / decompression
+    // bombs whose dimensions exceed PHP limits — extra defense against PHP
+    // payloads with image MIME headers.
+    $info = @getimagesize($file['tmp_name']);
+    if ($info === false || ($info[0] ?? 0) <= 0 || ($info[1] ?? 0) <= 0) {
+        http_response_code(422);
+        echo json_encode(['error' => 'File is not a valid image']);
+        exit;
+    }
+
     $uploadDir = __DIR__ . '/../../uploads/products/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
-    $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = bin2hex(random_bytes(16)) . '.' . strtolower($ext);
+    // Always assign our own safe extension based on detected MIME — never
+    // honor the client-supplied filename's extension.
+    $ext      = $allowed[$actualType];
+    $filename = bin2hex(random_bytes(16)) . '.' . $ext;
     $dest     = $uploadDir . $filename;
 
     if (!move_uploaded_file($file['tmp_name'], $dest)) {
@@ -62,6 +98,7 @@ function handleImageUpload(): ?string
         echo json_encode(['error' => 'Failed to save image']);
         exit;
     }
+    @chmod($dest, 0644);
 
     return 'uploads/products/' . $filename;
 }

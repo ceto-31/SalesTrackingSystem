@@ -1,0 +1,3 @@
+# backend/uploads/sessions/.htaccess
+# Session files must NEVER be served over HTTP.
+Require all denied

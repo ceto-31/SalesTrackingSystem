@@ -1,0 +1,21 @@
+# backend/uploads/.htaccess
+# Defense in depth: even if MIME validation is bypassed and a script lands
+# here, Apache must refuse to execute it.
+
+<FilesMatch "\.(php|phtml|phps|cgi|pl|py|sh|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+
+# Strip any PHP handler that may have been inherited
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Force download for unknown types
+Options -ExecCGI -Indexes
