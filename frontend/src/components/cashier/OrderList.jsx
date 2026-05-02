@@ -26,8 +26,8 @@ export default function OrderList() {
   const [paying,    setPaying]    = useState(false)
   const [payError,  setPayError]  = useState('')
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true)
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true)
     setError('')
     try {
       const { data } = await getCashierOrders()
@@ -40,7 +40,7 @@ export default function OrderList() {
     } catch {
       setError('Failed to load orders.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -98,18 +98,23 @@ export default function OrderList() {
     setPaying(true)
     setPayError('')
     try {
-      // Pay each selected order with its own total. The tendered amount in
-      // the modal is informational (combined change for the customer); the
-      // recorded amount_paid per row is that order's total.
       const totalsById = new Map(orders.map((o) => [o.id, Number(o.total_amount || 0)]))
+      const paidIds = []
       for (const id of payModal.ids) {
         const t = totalsById.get(id) ?? 0
         await markOrderPaid(id, t)
+        paidIds.push({ id, amount: t })
       }
+      // Optimistic local update — no spinner, no refetch.
+      setOrders((prev) =>
+        prev.map((o) => {
+          const hit = paidIds.find((p) => p.id === o.id)
+          return hit ? { ...o, amount_paid: hit.amount } : o
+        }),
+      )
+      setSelected(new Set())
       setPayModal(null)
       setTendered('')
-      setSelected(new Set())
-      await fetchOrders()
     } catch (e) {
       setPayError(e?.response?.data?.error || 'Failed to mark as paid.')
     } finally {
@@ -123,7 +128,7 @@ export default function OrderList() {
         <h4 className="fw-bold mb-0">
           <i className="bi bi-list-ul me-2 text-primary" /> My Orders
         </h4>
-        <button className="btn btn-outline-secondary btn-sm" onClick={fetchOrders}>
+        <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchOrders({ silent: true })}>
           <i className="bi bi-arrow-clockwise me-1" /> Refresh
         </button>
       </div>
