@@ -14,6 +14,28 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Global 401 handler: when the session has expired (e.g. cookie GC'd or
+// container restart wiped it), bounce the user to /login with a hint.
+// Skip the bootstrap call to /auth/me.php so the initial "am I logged in?"
+// probe stays silent.
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status
+    const url    = err?.config?.url || ''
+    const isMe   = url.includes('/auth/me')
+    const isLogin = url.includes('/auth/login')
+    if (status === 401 && !isMe && !isLogin) {
+      try { sessionStorage.setItem('session_expired', '1') } catch {}
+      // Avoid loops: only redirect if not already on /login
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login?reason=expired')
+      }
+    }
+    return Promise.reject(err)
+  },
+)
+
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export const login   = (username, password) =>
@@ -78,6 +100,9 @@ export const adjustOrderItemCancel = (orderId, itemId, delta) =>
 
 export const restoreOrder = (id) =>
   api.put(`/admin/orders.php?id=${id}`, { action: 'restore_all' })
+
+export const purgeOldOrders = (days = 3, keep = 90) =>
+  api.delete('/admin/purge-orders.php', { params: { days, keep } })
 
 // ── Cashier — Orders ─────────────────────────────────────────────────────────
 

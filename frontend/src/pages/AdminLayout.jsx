@@ -28,19 +28,55 @@ export default function AdminLayout() {
   )
   const prevCountRef = useRef(0)
   const audioRef = useRef(null)
+  const audioUnlockedRef = useRef(false)
+  const lastNotifiedTsRef = useRef(0)
 
-  // Lazy-init the audio element once.
+  // Lazy-init the audio element once + arm it on the first user gesture so
+  // browsers (which block autoplay) actually let us play it later.
   useEffect(() => {
     const a = new Audio('/sounds/notificationBuzzer.mp3')
     a.preload = 'auto'
     a.volume = 0.7
     audioRef.current = a
+
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      try {
+        a.muted = true
+        const p = a.play()
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            a.pause()
+            a.currentTime = 0
+            a.muted = false
+            audioUnlockedRef.current = true
+          }).catch(() => { /* will retry on next gesture */ })
+        }
+      } catch { /* silent */ }
+    }
+    document.addEventListener('pointerdown', unlock, { once: false })
+    document.addEventListener('keydown',     unlock, { once: false })
+    return () => {
+      document.removeEventListener('pointerdown', unlock)
+      document.removeEventListener('keydown',     unlock)
+    }
+  }, [])
+
+  const playBuzzer = useCallback(() => {
+    const a = audioRef.current
+    if (!a) return
+    try {
+      a.currentTime = 0
+      const p = a.play()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    } catch { /* silent */ }
   }, [])
 
   const fetchNotifs = useCallback(async () => {
     try {
       const { data } = await getAdminOrders('preparing')
-      const items = (data || [])
+      const list = Array.isArray(data) ? data : []
+      const items = list
         .filter((o) => new Date(o.created_at).getTime() > lastSeen)
         .map((o) => ({
           id: o.id,
@@ -51,10 +87,25 @@ export default function AdminLayout() {
           }),
         }))
       setNotifItems(items)
+
+      // Ring on any genuinely-new order, regardless of count delta. This
+      // fixes the case where the admin sits on the Orders tab (lastSeen
+      // advances to 'now', so notifItems.length stays 0 even though new
+      // orders are arriving).
+      const newest = list.reduce((m, o) => {
+        const t = new Date(o.created_at).getTime()
+        return t > m ? t : m
+      }, 0)
+      if (newest > lastNotifiedTsRef.current) {
+        if (lastNotifiedTsRef.current !== 0) {
+          playBuzzer()
+        }
+        lastNotifiedTsRef.current = newest
+      }
     } catch {
       // silent — polling will retry
     }
-  }, [lastSeen])
+  }, [lastSeen, playBuzzer])
 
   useEffect(() => { fetchNotifs() }, [fetchNotifs])
   useEffect(() => {
@@ -62,22 +113,16 @@ export default function AdminLayout() {
     return () => clearInterval(t)
   }, [fetchNotifs])
 
-  // Play a buzzer when the unseen-order count grows.
+  // Play a buzzer when the unseen-order count grows (covers the case where
+  // a new order arrives while the admin is *not* on the Orders tab).
   useEffect(() => {
     const prev = prevCountRef.current
     const curr = notifItems.length
-    if (curr > prev && audioRef.current) {
-      try {
-        audioRef.current.currentTime = 0
-        const p = audioRef.current.play()
-        if (p && typeof p.catch === 'function') {
-          // Autoplay may be blocked until the user interacts with the tab.
-          p.catch(() => { /* silent */ })
-        }
-      } catch { /* silent */ }
+    if (curr > prev) {
+      playBuzzer()
     }
     prevCountRef.current = curr
-  }, [notifItems.length])
+  }, [notifItems.length, playBuzzer])
 
   const handleNotifOpen = useCallback(() => {
     const now = Date.now()
@@ -123,7 +168,18 @@ export default function AdminLayout() {
           <i className="bi bi-cart-check-fill text-primary" />
           Order Tracker
         </span>
-        <span className="badge bg-primary">Admin</span>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            onClick={playBuzzer}
+            title="Test notification sound"
+            aria-label="Test notification sound"
+          >
+            <i className="bi bi-volume-up" />
+          </button>
+          <span className="badge bg-primary">Admin</span>
+        </div>
       </nav>
 
       {/* ── Backdrop (mobile drawer only) ── */}
@@ -167,6 +223,15 @@ export default function AdminLayout() {
             </div>
           </div>
           <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary d-none d-lg-inline-flex"
+              onClick={playBuzzer}
+              title="Test notification sound"
+              aria-label="Test notification sound"
+            >
+              <i className="bi bi-volume-up" />
+            </button>
             {/* Close button visible only on mobile */}
             <button
               type="button"

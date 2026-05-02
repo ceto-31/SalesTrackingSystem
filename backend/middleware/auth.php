@@ -29,10 +29,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 function startSession(): void
 {
     if (session_status() === PHP_SESSION_NONE) {
+        // 30-day rolling session — survives idle time, browser restarts, and
+        // (because save_path lives under the persistent uploads volume on
+        // Railway) container redeploys.
+        $lifetime = 60 * 60 * 24 * 30; // 30 days
+
+        $sessDir = __DIR__ . '/../uploads/sessions';
+        if (!is_dir($sessDir)) {
+            @mkdir($sessDir, 0775, true);
+        }
+        if (is_dir($sessDir) && is_writable($sessDir)) {
+            ini_set('session.save_path', $sessDir);
+        }
+        ini_set('session.gc_maxlifetime',  (string)$lifetime);
+        ini_set('session.gc_probability',  '1');
+        ini_set('session.gc_divisor',      '1000');
+        ini_set('session.use_only_cookies','1');
+
         // SameSite=Lax works because the frontend goes through Vercel's
         // /api proxy, so all requests are same-site (first-party). This is
         // what iOS Safari (and Brave on iOS) trust by default.
         session_start([
+            'cookie_lifetime' => $lifetime,
             'cookie_httponly' => true,
             'cookie_samesite' => 'Lax',
             'cookie_secure'   => true,

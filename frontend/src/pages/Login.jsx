@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login as apiLogin } from '../services/api'
 import { useAuth } from '../context/AuthContext'
@@ -9,9 +9,20 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
+  const [info,     setInfo]     = useState('')
   const [loading,  setLoading]  = useState(false)
   const navigate   = useNavigate()
   const { login }  = useAuth()
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const expired = params.get('reason') === 'expired'
+      || sessionStorage.getItem('session_expired') === '1'
+    if (expired) {
+      setInfo('Your session expired. Please sign in again.')
+      try { sessionStorage.removeItem('session_expired') } catch {}
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -42,6 +53,11 @@ export default function Login() {
           {error && (
             <div className="alert alert-danger py-2" role="alert">
               {error}
+            </div>
+          )}
+          {info && !error && (
+            <div className="alert alert-warning py-2" role="status">
+              {info}
             </div>
           )}
 

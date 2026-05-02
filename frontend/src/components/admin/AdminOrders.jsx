@@ -9,6 +9,7 @@ import {
   reopenOrder,
   adjustOrderItemCancel,
   restoreOrder,
+  purgeOldOrders,
 } from '../../services/api'
 
 const POLL_MS = 15000
@@ -201,6 +202,41 @@ export default function AdminOrders() {
   const [search,      setSearch]      = useState('')
   const [acting,      setActing]      = useState(0)
   const [busyItemId,  setBusyItemId]  = useState(0)
+  const [purging,     setPurging]     = useState(false)
+  const [purgeMsg,    setPurgeMsg]    = useState('')
+
+  // Auto-purge: once per day per browser, silently delete orders older than
+  // 3 days OR beyond the most recent 90. Keeps storage lean without bothering
+  // the admin. A manual "Cleanup now" button is also exposed below.
+  useEffect(() => {
+    const KEY = 'admin_last_autopurge'
+    const last = Number(localStorage.getItem(KEY) || 0)
+    const ONE_DAY = 24 * 60 * 60 * 1000
+    if (Date.now() - last < ONE_DAY) return
+    purgeOldOrders(3, 90)
+      .then(() => localStorage.setItem(KEY, String(Date.now())))
+      .catch(() => { /* silent — manual button still available */ })
+  }, [])
+
+  const handleManualPurge = async () => {
+    if (!window.confirm(
+      'Delete orders older than 3 days AND keep only the most recent 90?\n\n' +
+      'This permanently removes old order history to save storage.'
+    )) return
+    setPurging(true)
+    setPurgeMsg('')
+    try {
+      const { data } = await purgeOldOrders(3, 90)
+      setPurgeMsg(`Cleaned up ${data.deleted_orders} order(s).`)
+      localStorage.setItem('admin_last_autopurge', String(Date.now()))
+      await fetchOrders()
+      setTimeout(() => setPurgeMsg(''), 4000)
+    } catch (e) {
+      setPurgeMsg(e?.response?.data?.error || 'Cleanup failed.')
+    } finally {
+      setPurging(false)
+    }
+  }
 
   const fetchOrders = useCallback(async () => {
     setError('')
@@ -334,10 +370,28 @@ export default function AdminOrders() {
           <i className="bi bi-receipt-cutoff me-2 text-primary" />
           Kitchen Orders
         </h4>
-        <button className="btn btn-outline-secondary btn-sm" onClick={fetchOrders}>
-          <i className="bi bi-arrow-clockwise me-1" /> Refresh
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            className="btn btn-outline-danger btn-sm"
+            onClick={handleManualPurge}
+            disabled={purging}
+            title="Delete orders older than 3 days; keep at most the latest 90"
+          >
+            {purging ? (
+              <><span className="spinner-border spinner-border-sm me-1" /> Cleaning…</>
+            ) : (
+              <><i className="bi bi-trash3 me-1" /> Cleanup</>
+            )}
+          </button>
+          <button className="btn btn-outline-secondary btn-sm" onClick={fetchOrders}>
+            <i className="bi bi-arrow-clockwise me-1" /> Refresh
+          </button>
+        </div>
       </div>
+
+      {purgeMsg && (
+        <div className="alert alert-info py-2 small">{purgeMsg}</div>
+      )}
 
       <ul className="nav nav-pills mb-3 gap-2 flex-wrap">
         {tabBtn('preparing', 'bi-fire', 'Preparing')}

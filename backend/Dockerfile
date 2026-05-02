@@ -11,9 +11,10 @@ COPY backend/ /var/www/html/
 
 # Ensure uploads directory exists with correct ownership
 RUN chmod +x /entrypoint.sh \
-    && mkdir -p /var/www/html/uploads/products \
+    && mkdir -p /var/www/html/uploads/products /var/www/html/uploads/sessions \
     && chown -R www-data:www-data /var/www/html/uploads \
-    && chmod -R 755 /var/www/html/uploads
+    && chmod -R 755 /var/www/html/uploads \
+    && chmod 770 /var/www/html/uploads/sessions
 
 EXPOSE 80
 
