@@ -43,7 +43,7 @@ function OrderCard({
       <div className="card-body">
         <div className="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
           <div className="d-flex align-items-center flex-wrap gap-2">
-            <span className="fw-bold">#{order.id}</span>
+            <span className="fw-bold">#{order.daily_seq ?? order.id}</span>
             <span className="text-muted small">{fmtTime(order.created_at)}</span>
             {order.order_type && (
               <span
@@ -106,10 +106,10 @@ function OrderCard({
             return (
               <li
                 key={item.item_id}
-                className="d-flex align-items-center gap-2 px-2 py-2 rounded"
+                className="d-flex align-items-center flex-wrap gap-2 px-2 py-2 rounded"
                 style={{ background: isLineFullyCancelled ? '#f1f3f5' : '#fff7fa' }}
               >
-                <div className="flex-grow-1 min-w-0">
+                <div className="flex-grow-1 min-w-0" style={{ minWidth: 0, flexBasis: 0 }}>
                   <div
                     className="fw-bold text-truncate"
                     style={{ textDecoration: isLineFullyCancelled ? 'line-through' : 'none' }}
@@ -126,7 +126,7 @@ function OrderCard({
                   )}
                 </div>
 
-                <div className="text-end" style={{ minWidth: 130 }}>
+                <div className="text-end flex-shrink-0" style={{ minWidth: 130 }}>
                   <div className="fw-bold text-dark" style={{ fontSize: '1.05rem', lineHeight: 1.2 }}>
                     ₱{fmtMoney(item.unit_price)} <span className="text-muted">×</span> {activeQty}
                     {cancelledQty > 0 && (
@@ -144,7 +144,7 @@ function OrderCard({
                 </div>
 
                 {canEdit && (
-                  <div className="btn-group btn-group-sm" role="group">
+                  <div className="btn-group btn-group-sm flex-shrink-0 ms-auto" role="group">
                     <button
                       className="btn btn-outline-secondary"
                       title="Restore one"

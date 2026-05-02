@@ -233,21 +233,37 @@ if ($method === 'PUT') {
         exit;
     }
 
-    $body   = json_decode(file_get_contents('php://input'), true) ?? [];
-    $status = $body['status'] ?? '';
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
-        http_response_code(422);
-        echo json_encode(['error' => 'invalid status']);
+    // Cashiers may only update their own orders
+    $check = $db->prepare('SELECT id, total_amount FROM orders WHERE id = ? AND cashier_id = ?');
+    $check->execute([$id, $cashier['id']]);
+    $row = $check->fetch();
+    if ($row === false) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Order not found']);
         exit;
     }
 
-    // Cashiers may only update their own orders
-    $check = $db->prepare('SELECT id FROM orders WHERE id = ? AND cashier_id = ?');
-    $check->execute([$id, $cashier['id']]);
-    if ($check->fetch() === false) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Order not found']);
+    // Variant: mark order as paid (records tendered amount).
+    if (array_key_exists('amount_paid', $body)) {
+        $amountPaid = (float)$body['amount_paid'];
+        $total      = (float)$row['total_amount'];
+        if ($amountPaid < $total) {
+            http_response_code(422);
+            echo json_encode(['error' => 'amount_paid must be >= total']);
+            exit;
+        }
+        $db->prepare('UPDATE orders SET amount_paid = ? WHERE id = ?')
+           ->execute([$amountPaid, $id]);
+        echo json_encode(['id' => $id, 'amount_paid' => $amountPaid]);
+        exit;
+    }
+
+    $status = $body['status'] ?? '';
+    if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
+        http_response_code(422);
+        echo json_encode(['error' => 'invalid status']);
         exit;
     }
 

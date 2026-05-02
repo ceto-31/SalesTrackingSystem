@@ -52,7 +52,11 @@ if ($method === 'GET') {
     $orderDirection = ($status === 'preparing') ? 'ASC' : 'DESC';
 
     $sql = "SELECT
-                o.id, o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
+                o.id,
+                (SELECT COUNT(*) FROM orders o2
+                  WHERE DATE(o2.created_at) = DATE(o.created_at)
+                    AND o2.id <= o.id) AS daily_seq,
+                o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -94,6 +98,7 @@ if ($method === 'GET') {
         $order['amount_paid']  = isset($order['amount_paid']) && $order['amount_paid'] !== null
             ? (float)$order['amount_paid']
             : null;
+        $order['daily_seq']    = (int)$order['daily_seq'];
     }
 
     echo json_encode($orders);

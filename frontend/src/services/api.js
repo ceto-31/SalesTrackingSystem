@@ -105,6 +105,9 @@ export const createOrder = (customerName, status, items, orderType = 'dine_in', 
 export const updateOrderStatus = (id, status) =>
   api.put(`/cashier/orders.php?id=${id}`, { status })
 
+export const markOrderPaid = (id, amountPaid) =>
+  api.put(`/cashier/orders.php?id=${id}`, { amount_paid: amountPaid })
+
 // ── Shared — Products ────────────────────────────────────────────────────────
 
 export const getProducts = () =>

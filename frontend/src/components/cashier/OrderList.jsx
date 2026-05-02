@@ -3,7 +3,7 @@
 // Adds: search, cancelled status reflection, multi-select unpaid orders w/ live total.
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { getCashierOrders } from '../../services/api'
+import { getCashierOrders, markOrderPaid } from '../../services/api'
 
 const STATUS_META = {
   preparing: { label: 'Preparing', icon: 'bi-fire',          cls: 'bg-warning text-dark' },
@@ -19,6 +19,12 @@ export default function OrderList() {
   const [error,     setError]     = useState('')
   const [search,    setSearch]    = useState('')
   const [selected,  setSelected]  = useState(() => new Set())
+
+  // Pay modal: { ids: number[], total: number } or null
+  const [payModal,  setPayModal]  = useState(null)
+  const [tendered,  setTendered]  = useState('')
+  const [paying,    setPaying]    = useState(false)
+  const [payError,  setPayError]  = useState('')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -68,6 +74,48 @@ export default function OrderList() {
   const selectionCount = useMemo(() => {
     return orders.filter((o) => selected.has(o.id) && isUnpaid(o)).length
   }, [orders, selected])
+
+  const openPayModal = (ids, total) => {
+    setTendered('')
+    setPayError('')
+    setPayModal({ ids, total })
+  }
+
+  const closePayModal = () => {
+    if (paying) return
+    setPayModal(null)
+    setTendered('')
+    setPayError('')
+  }
+
+  const tenderedNum = parseFloat(tendered)
+  const payTotal    = payModal?.total ?? 0
+  const payChange   = Number.isFinite(tenderedNum) ? tenderedNum - payTotal : 0
+  const payValid    = Number.isFinite(tenderedNum) && tenderedNum >= payTotal
+
+  const submitPayment = async () => {
+    if (!payModal || !payValid || paying) return
+    setPaying(true)
+    setPayError('')
+    try {
+      // Pay each selected order with its own total. The tendered amount in
+      // the modal is informational (combined change for the customer); the
+      // recorded amount_paid per row is that order's total.
+      const totalsById = new Map(orders.map((o) => [o.id, Number(o.total_amount || 0)]))
+      for (const id of payModal.ids) {
+        const t = totalsById.get(id) ?? 0
+        await markOrderPaid(id, t)
+      }
+      setPayModal(null)
+      setTendered('')
+      setSelected(new Set())
+      await fetchOrders()
+    } catch (e) {
+      setPayError(e?.response?.data?.error || 'Failed to mark as paid.')
+    } finally {
+      setPaying(false)
+    }
+  }
 
   return (
     <div style={selectionCount > 0 ? { paddingBottom: 96 } : undefined}>
@@ -140,7 +188,7 @@ export default function OrderList() {
                         </span>
                       </div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
                       {!cancelled && order.amount_paid !== null && order.amount_paid !== undefined && (
                         <span className="badge bg-success">Paid</span>
                       )}
@@ -151,6 +199,15 @@ export default function OrderList() {
                         <i className={`bi ${meta.icon} me-1`} />
                         {meta.label}
                       </span>
+                      {unpaid && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-success"
+                          onClick={() => openPayModal([order.id], Number(order.total_amount || 0))}
+                        >
+                          <i className="bi bi-cash-coin me-1" /> Mark Paid
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -240,6 +297,18 @@ export default function OrderList() {
             </div>
             <button
               type="button"
+              className="btn btn-success btn-sm"
+              onClick={() => {
+                const ids = orders
+                  .filter((o) => selected.has(o.id) && isUnpaid(o))
+                  .map((o) => o.id)
+                openPayModal(ids, selectionTotal)
+              }}
+            >
+              <i className="bi bi-cash-coin me-1" /> Mark Paid
+            </button>
+            <button
+              type="button"
               className="btn btn-outline-secondary btn-sm"
               onClick={() => setSelected(new Set())}
             >
@@ -247,6 +316,103 @@ export default function OrderList() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Payment modal — single or bulk */}
+      {payModal && (
+        <>
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100"
+            style={{ background: 'rgba(0,0,0,.45)', zIndex: 1050 }}
+            onClick={closePayModal}
+          />
+          <div
+            className="position-fixed top-50 start-50 translate-middle bg-white rounded shadow-lg"
+            style={{ zIndex: 1060, width: 'min(420px, 92vw)', padding: '1rem 1.1rem' }}
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <h5 className="fw-bold mb-0">
+                <i className="bi bi-cash-coin me-2 text-primary" />
+                Mark {payModal.ids.length > 1 ? `${payModal.ids.length} orders` : 'order'} as paid
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={closePayModal}
+                aria-label="Close"
+                disabled={paying}
+              />
+            </div>
+
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <span className="text-muted">Total due</span>
+              <span className="fw-bold fs-5 text-primary">
+                ₱{payTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <label htmlFor="pay-tendered" className="form-label small fw-semibold mb-1">
+              Cash tendered
+            </label>
+            <div className="input-group mb-2">
+              <span className="input-group-text">₱</span>
+              <input
+                id="pay-tendered"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                className="form-control"
+                value={tendered}
+                onChange={(e) => setTendered(e.target.value)}
+                placeholder="0.00"
+                autoFocus
+              />
+            </div>
+
+            {tendered !== '' && (
+              <div
+                className={`d-flex justify-content-between align-items-center mb-2 ${
+                  payValid ? 'text-success' : 'text-danger'
+                }`}
+              >
+                <span>{payValid ? 'Change' : 'Insufficient'}</span>
+                <span className="fw-bold">
+                  ₱{Math.max(0, payChange).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+
+            {payError && <div className="alert alert-danger py-2 small mb-2">{payError}</div>}
+
+            <div className="d-flex gap-2 mt-3">
+              <button
+                type="button"
+                className="btn btn-outline-secondary flex-grow-1"
+                onClick={closePayModal}
+                disabled={paying}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-success flex-grow-1"
+                onClick={submitPayment}
+                disabled={!payValid || paying}
+              >
+                {paying ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" /> Saving…
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-lg me-1" /> Confirm Paid
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
