@@ -43,16 +43,19 @@ try {
     }
 
     // 2. Backfill daily_seq for existing rows. Each calendar day numbered from 1
-    //    in id order.
-    $db->exec("SET @seq := 0, @day := ''");
+    //    in id order. Use a derived table with a row-number style assignment;
+    //    NULL sentinel avoids strict-mode datetime errors when comparing.
+    $db->exec("SET @seq := 0, @day := NULL");
     $db->exec("
         UPDATE orders o
         JOIN (
-            SELECT id,
-                   @seq := IF(@day = DATE(created_at), @seq + 1, 1) AS seq,
-                   @day := DATE(created_at)
-            FROM orders
-            ORDER BY DATE(created_at), id
+            SELECT id, seq FROM (
+                SELECT id,
+                       @seq := IF(@day <=> DATE(created_at), @seq + 1, 1) AS seq,
+                       @day := DATE(created_at) AS d
+                FROM orders
+                ORDER BY DATE(created_at), id
+            ) x
         ) s ON s.id = o.id
         SET o.daily_seq = s.seq
         WHERE o.daily_seq = 0
