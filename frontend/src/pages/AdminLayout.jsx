@@ -23,6 +23,7 @@ export default function AdminLayout() {
 
   // ── New-order notifications ────────────────────────────────────────────────
   const [notifItems, setNotifItems] = useState([])
+  const [preparingCount, setPreparingCount] = useState(0)
   const [lastSeen, setLastSeen] = useState(
     () => Number(localStorage.getItem(LAST_SEEN_KEY)) || 0,
   )
@@ -78,15 +79,20 @@ export default function AdminLayout() {
       const list = Array.isArray(data) ? data : []
       const items = list
         .filter((o) => new Date(o.created_at).getTime() > lastSeen)
-        .map((o) => ({
-          id: o.id,
-          title: `New order #${o.id} — ${o.customer_name}`,
-          subtitle: new Date(o.created_at).toLocaleString('en-PH', {
-            month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-          }),
-        }))
+        .map((o) => {
+          const seq = o.daily_seq > 0 ? o.daily_seq : o.id
+          return {
+            id: o.id,
+            seq,
+            customerName: o.customer_name || 'Walk-in',
+            subtitle: new Date(o.created_at).toLocaleString('en-PH', {
+              month: 'short', day: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            }),
+          }
+        })
       setNotifItems(items)
+      setPreparingCount(list.length)
 
       // Ring on any genuinely-new order, regardless of count delta. This
       // fixes the case where the admin sits on the Orders tab (lastSeen
@@ -256,13 +262,16 @@ export default function AdminLayout() {
           >
             <i className="bi bi-receipt-cutoff" />
             <span>Orders</span>
-            {notifItems.length > 0 && (
+            {preparingCount > 0 && (
               <span
-                className="badge rounded-pill bg-danger ms-auto"
+                className={`badge rounded-pill ms-auto ${
+                  notifItems.length > 0 ? 'bg-danger' : 'bg-warning text-dark'
+                }`}
                 style={{ fontSize: '0.7rem', minWidth: 22 }}
-                aria-label={`${notifItems.length} new orders`}
+                aria-label={`${preparingCount} preparing orders`}
+                title={`${preparingCount} preparing${notifItems.length > 0 ? ` · ${notifItems.length} new` : ''}`}
               >
-                {notifItems.length > 99 ? '99+' : notifItems.length}
+                {preparingCount > 99 ? '99+' : preparingCount}
               </span>
             )}
           </NavLink>

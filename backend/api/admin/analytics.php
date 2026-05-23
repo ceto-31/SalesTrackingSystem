@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../middleware/auth.php';
+require_once __DIR__ . '/../../lib/order_filters.php';
 
 header('Content-Type: application/json');
 
@@ -74,12 +75,12 @@ $db = getDB();
 $dayStmt = $db->prepare(
     "SELECT
          DATE(o.created_at)                                                       AS day,
-         COALESCE(SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0) * oi.unit_price), 0) AS revenue,
+         COALESCE(SUM(" . ORDER_ITEM_ACTIVE_QTY . " * oi.unit_price), 0) AS revenue,
          COUNT(DISTINCT o.id)                                                     AS order_count
      FROM orders o
      JOIN order_items oi ON oi.order_id = o.id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
-      AND o.status IN ('paid', 'completed')
+      AND " . ORDER_REVENUE_SQL . "
     GROUP BY DATE(o.created_at)"
 );
 $dayStmt->execute([$startStr, $endStr]);
@@ -125,13 +126,13 @@ $topStmt = $db->prepare(
          p.id                                                                       AS product_id,
          p.name,
          p.variety,
-         SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0))                      AS total_sold,
-         SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0) * oi.unit_price)      AS revenue
+         SUM(" . ORDER_ITEM_ACTIVE_QTY . ")                      AS total_sold,
+         SUM(" . ORDER_ITEM_ACTIVE_QTY . " * oi.unit_price)      AS revenue
      FROM order_items oi
      JOIN orders   o ON o.id  = oi.order_id
      JOIN products p ON p.id  = oi.product_id
     WHERE DATE(o.created_at) BETWEEN ? AND ?
-      AND o.status IN ('paid', 'completed')
+      AND " . ORDER_REVENUE_SQL . "
     GROUP BY p.id, p.name, p.variety
    HAVING total_sold > 0
     ORDER BY total_sold DESC

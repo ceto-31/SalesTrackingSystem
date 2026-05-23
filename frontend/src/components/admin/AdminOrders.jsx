@@ -1,6 +1,5 @@
 // src/components/admin/AdminOrders.jsx
 // Admin kitchen workflow: Preparing / Completed / Cancelled tabs.
-// Admin can cancel/restore individual quantities of a line item.
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
@@ -9,8 +8,8 @@ import {
   reopenOrder,
   adjustOrderItemCancel,
   restoreOrder,
-  purgeOldOrders,
 } from '../../services/api'
+import CustomerName from '../shared/CustomerName'
 
 const POLL_MS = 15000
 
@@ -25,58 +24,99 @@ function fmtTime(iso) {
   })
 }
 
+function orderNum(order) {
+  return order.daily_seq > 0 ? order.daily_seq : order.id
+}
+
+function isPaid(order) {
+  return order.amount_paid !== null && order.amount_paid !== undefined
+}
+
+function isExactPayment(order, total) {
+  return isPaid(order) && Math.abs(Number(order.amount_paid) - total) < 0.005
+}
+
+function OrderTypeBadge({ orderType }) {
+  if (!orderType) return null
+  const takeout = orderType === 'takeout'
+  return (
+    <span
+      className={`badge ${takeout ? 'bg-primary' : 'bg-info text-dark'}`}
+      style={{ fontSize: '0.85rem' }}
+    >
+      <i className={`bi ${takeout ? 'bi-bag' : 'bi-shop'} me-1`} />
+      {takeout ? 'Takeout' : 'Dine-in'}
+    </span>
+  )
+}
+
+function PaymentBadge({ order }) {
+  if (order.status === 'cancelled') return null
+  if (isPaid(order)) {
+    return <span className="badge bg-success">Paid</span>
+  }
+  return <span className="badge bg-warning text-dark">Unpaid</span>
+}
+
 function OrderCard({
   order,
-  canEdit,                   // true on preparing tab
+  canEdit,
+  highlightPreparing,
   onAction, actionLabel, actionIcon, actionClass, actionDisabled,
-  onAdjust,                  // (itemId, delta) => void
+  onAdjust,
   busyItemId,
   fullyCancelled,
 }) {
   const items = order.items ?? []
+  const activeItemCount = items.reduce(
+    (s, it) => s + Math.max(0, it.quantity - (it.cancelled_quantity ?? 0)),
+    0,
+  )
   const liveTotal = items.reduce((s, it) => {
     const active = Math.max(0, it.quantity - (it.cancelled_quantity ?? 0))
     return s + active * it.unit_price
   }, 0)
 
   return (
-    <div className="card border-0 shadow-sm">
+    <div
+      className={`card border-0 shadow-sm${highlightPreparing ? ' order-card-preparing' : ''}`}
+    >
       <div className="card-body">
+        {/* Row 1: order # · time · type · status · total */}
         <div className="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
           <div className="d-flex align-items-center flex-wrap gap-2">
-            <span className="fw-bold">#{order.daily_seq ?? order.id}</span>
+            <span className="fw-bold fs-5">#{orderNum(order)}</span>
             <span className="text-muted small">{fmtTime(order.created_at)}</span>
-            {order.order_type && (
-              <span
-                className={`badge ${
-                  order.order_type === 'takeout' ? 'bg-primary' : 'bg-info text-dark'
-                }`}
-                style={{ fontSize: '0.85rem' }}
-              >
-                <i className={`bi ${order.order_type === 'takeout' ? 'bi-bag' : 'bi-shop'} me-1`} />
-                {order.order_type === 'takeout' ? 'Takeout' : 'Dine-in'}
+            <OrderTypeBadge orderType={order.order_type} />
+            <PaymentBadge order={order} />
+          </div>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            {fullyCancelled ? (
+              <span className="badge bg-danger">
+                <i className="bi bi-x-octagon me-1" />
+                Cancelled
+              </span>
+            ) : (
+              <span className={`badge ${order.status === 'preparing' ? 'bg-warning text-dark' : 'bg-success'}`}>
+                <i className={`bi ${order.status === 'preparing' ? 'bi-fire' : 'bi-check-circle'} me-1`} />
+                {order.status === 'preparing' ? 'Preparing' : 'Completed'}
               </span>
             )}
+            {!fullyCancelled && (
+              <span className="order-card-total">₱{fmtMoney(liveTotal)}</span>
+            )}
           </div>
-          {fullyCancelled ? (
-            <span className="badge bg-danger">
-              <i className="bi bi-x-octagon me-1" />
-              Cancelled
-            </span>
-          ) : (
-            <span className={`badge ${order.status === 'preparing' ? 'bg-warning text-dark' : 'bg-success'}`}>
-              <i className={`bi ${order.status === 'preparing' ? 'bi-fire' : 'bi-check-circle'} me-1`} />
-              {order.status === 'preparing' ? 'Preparing' : 'Completed'}
-            </span>
-          )}
         </div>
 
-        <div className="small text-muted mb-3">
-          <i className="bi bi-person me-1" />
-          {order.customer_name}
-          <span className="mx-2">·</span>
+        {/* Row 2: customer name (hero + avatar) */}
+        <CustomerName name={order.customer_name} />
+
+        {/* Row 3: cashier · item count */}
+        <div className="small text-muted mb-2">
           <i className="bi bi-cash-coin me-1" />
           Cashier: {order.cashier_name}
+          <span className="mx-2">·</span>
+          {activeItemCount} item{activeItemCount !== 1 ? 's' : ''}
         </div>
 
         {order.notes && (
@@ -131,9 +171,7 @@ function OrderCard({
                   <div className="fw-bold text-dark" style={{ fontSize: '1.05rem', lineHeight: 1.2 }}>
                     ₱{fmtMoney(item.unit_price)} <span className="text-muted">×</span> {activeQty}
                     {cancelledQty > 0 && (
-                      <span className="text-danger ms-1 small">
-                        (of {item.quantity})
-                      </span>
+                      <span className="text-danger ms-1 small">(of {item.quantity})</span>
                     )}
                   </div>
                   <div
@@ -169,9 +207,25 @@ function OrderCard({
           })}
         </ul>
 
-        <div className="d-flex justify-content-between align-items-center border-top pt-2 mb-3">
-          <span className="fw-bold">Total</span>
-          <span className="fw-bold fs-5 text-primary">₱{fmtMoney(liveTotal)}</span>
+        <div className="border-top pt-2 mb-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <span className="fw-bold">Total</span>
+            <span className="fw-bold fs-5 text-primary">₱{fmtMoney(liveTotal)}</span>
+          </div>
+          {isPaid(order) && !fullyCancelled && (
+            <div className="d-flex justify-content-between align-items-center small text-muted mt-1">
+              <span>{isExactPayment(order, liveTotal) ? 'Paid exact' : 'Tendered · Change'}</span>
+              <span>
+                ₱{fmtMoney(order.amount_paid)}
+                {!isExactPayment(order, liveTotal) && (
+                  <>
+                    {' · '}
+                    ₱{fmtMoney(Math.max(0, Number(order.amount_paid) - liveTotal))}
+                  </>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         {actionLabel && (
@@ -195,60 +249,36 @@ function OrderCard({
 }
 
 export default function AdminOrders() {
-  const [tab,         setTab]         = useState('preparing')   // preparing | completed | cancelled
+  const [tab,         setTab]         = useState('preparing')
   const [orders,      setOrders]      = useState([])
+  const [tabCounts,   setTabCounts]   = useState({ preparing: 0, completed: 0, cancelled: 0 })
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
   const [search,      setSearch]      = useState('')
   const [acting,      setActing]      = useState(0)
   const [busyItemId,  setBusyItemId]  = useState(0)
-  const [purging,     setPurging]     = useState(false)
-  const [purgeMsg,    setPurgeMsg]    = useState('')
 
-  // Auto-purge DISABLED — it was hard-deleting historical orders, which
-  // also wiped Analytics history. Keep the manual button gated behind a
-  // strong confirmation in case storage truly fills up, but never run it
-  // automatically in the background.
-  // useEffect(() => {
-  //   const KEY = 'admin_last_autopurge'
-  //   const last = Number(localStorage.getItem(KEY) || 0)
-  //   const ONE_DAY = 24 * 60 * 60 * 1000
-  //   if (Date.now() - last < ONE_DAY) return
-  //   purgeOldOrders(3, 90)
-  //     .then(() => localStorage.setItem(KEY, String(Date.now())))
-  //     .catch(() => {})
-  // }, [])
-
-  const handleManualPurge = async () => {
-    if (!window.confirm(
-      'DANGER: This permanently deletes old orders AND removes them from Analytics history.\n\n' +
-      'Only proceed if you have a recent database backup.\n\n' +
-      'Continue?'
-    )) return
-    if (!window.confirm(
-      'Are you absolutely sure? Deleted orders cannot be recovered from the app.'
-    )) return
-    setPurging(true)
-    setPurgeMsg('')
+  const fetchTabCounts = useCallback(async () => {
     try {
-      const { data } = await purgeOldOrders(3, 90)
-      setPurgeMsg(`Cleaned up ${data.deleted_orders} order(s).`)
-      localStorage.setItem('admin_last_autopurge', String(Date.now()))
-      await fetchOrders()
-      setTimeout(() => setPurgeMsg(''), 4000)
-    } catch (e) {
-      setPurgeMsg(e?.response?.data?.error || 'Cleanup failed.')
-    } finally {
-      setPurging(false)
+      const [prep, comp, canc] = await Promise.all([
+        getAdminOrders('preparing'),
+        getAdminOrders('completed'),
+        getAdminOrders('cancelled'),
+      ])
+      setTabCounts({
+        preparing: Array.isArray(prep.data) ? prep.data.length : 0,
+        completed: Array.isArray(comp.data) ? comp.data.length : 0,
+        cancelled: Array.isArray(canc.data) ? canc.data.length : 0,
+      })
+    } catch {
+      // non-fatal — tab labels keep last counts
     }
-  }
+  }, [])
 
   const fetchOrders = useCallback(async () => {
     setError('')
     try {
       const { data } = await getAdminOrders(tab)
-      // Defensive: backend should return an array; if it returned an error
-      // object (e.g. missing column), don't blank the page.
       if (Array.isArray(data)) {
         setOrders(data)
       } else {
@@ -264,21 +294,26 @@ export default function AdminOrders() {
     }
   }, [tab])
 
-  useEffect(() => {
-    setLoading(true)
-    fetchOrders()
-  }, [fetchOrders])
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchOrders(), fetchTabCounts()])
+  }, [fetchOrders, fetchTabCounts])
 
   useEffect(() => {
-    const t = setInterval(fetchOrders, POLL_MS)
+    setLoading(true)
+    refreshAll()
+  }, [refreshAll])
+
+  useEffect(() => {
+    const t = setInterval(refreshAll, POLL_MS)
     return () => clearInterval(t)
-  }, [fetchOrders])
+  }, [refreshAll])
 
   const handleComplete = async (id) => {
     setActing(id)
     try {
       await completeOrder(id)
       setOrders((prev) => prev.filter((o) => o.id !== id))
+      fetchTabCounts()
     } catch {
       alert('Failed to mark as completed.')
     } finally {
@@ -291,6 +326,7 @@ export default function AdminOrders() {
     try {
       await reopenOrder(id)
       setOrders((prev) => prev.filter((o) => o.id !== id))
+      fetchTabCounts()
     } catch {
       alert('Failed to reopen.')
     } finally {
@@ -302,8 +338,8 @@ export default function AdminOrders() {
     setActing(id)
     try {
       await restoreOrder(id)
-      // Order goes back to Preparing — drop from Cancelled list
       setOrders((prev) => prev.filter((o) => o.id !== id))
+      fetchTabCounts()
     } catch {
       alert('Failed to restore order.')
     } finally {
@@ -326,8 +362,6 @@ export default function AdminOrders() {
             ),
           }
         )
-        // If on preparing tab and the order just became fully cancelled,
-        // remove it (it will reappear on the Cancelled tab).
         if (tab === 'preparing') {
           return updated.filter((o) => {
             const remaining = (o.items ?? []).reduce(
@@ -339,6 +373,7 @@ export default function AdminOrders() {
         }
         return updated
       })
+      fetchTabCounts()
     } catch (err) {
       const detail = err?.response?.data?.error ?? 'Failed to update item.'
       alert(detail)
@@ -354,6 +389,9 @@ export default function AdminOrders() {
         onClick={() => setTab(key)}
       >
         <i className={`bi ${icon} me-1`} /> {label}
+        <span className={`badge ms-2 ${tab === key ? 'bg-light text-dark' : 'bg-secondary'}`}>
+          {tabCounts[key] ?? 0}
+        </span>
       </button>
     </li>
   )
@@ -363,6 +401,7 @@ export default function AdminOrders() {
     if (!q) return orders
     return orders.filter((o) => {
       if (String(o.id).includes(q)) return true
+      if (String(o.daily_seq ?? '').includes(q)) return true
       if ((o.customer_name || '').toLowerCase().includes(q)) return true
       return false
     })
@@ -375,28 +414,10 @@ export default function AdminOrders() {
           <i className="bi bi-receipt-cutoff me-2 text-primary" />
           Kitchen Orders
         </h4>
-        <div className="d-flex align-items-center gap-2">
-          <button
-            className="btn btn-outline-danger btn-sm"
-            onClick={handleManualPurge}
-            disabled={purging}
-            title="Delete orders older than 3 days; keep at most the latest 90"
-          >
-            {purging ? (
-              <><span className="spinner-border spinner-border-sm me-1" /> Cleaning…</>
-            ) : (
-              <><i className="bi bi-trash3 me-1" /> Cleanup</>
-            )}
-          </button>
-          <button className="btn btn-outline-secondary btn-sm" onClick={fetchOrders}>
-            <i className="bi bi-arrow-clockwise me-1" /> Refresh
-          </button>
-        </div>
+        <button className="btn btn-outline-secondary btn-sm" onClick={refreshAll}>
+          <i className="bi bi-arrow-clockwise me-1" /> Refresh
+        </button>
       </div>
-
-      {purgeMsg && (
-        <div className="alert alert-info py-2 small">{purgeMsg}</div>
-      )}
 
       <ul className="nav nav-pills mb-3 gap-2 flex-wrap">
         {tabBtn('preparing', 'bi-fire', 'Preparing')}
@@ -449,6 +470,7 @@ export default function AdminOrders() {
                   key={o.id}
                   order={o}
                   canEdit
+                  highlightPreparing
                   onAction={handleComplete}
                   actionLabel={acting === o.id ? 'Completing…' : 'Mark Completed'}
                   actionIcon="bi-check2-square"
@@ -466,6 +488,7 @@ export default function AdminOrders() {
                   key={o.id}
                   order={o}
                   canEdit={false}
+                  highlightPreparing={false}
                   onAction={handleReopen}
                   actionLabel={acting === o.id ? 'Reopening…' : 'Reopen (back to Preparing)'}
                   actionIcon="bi-arrow-counterclockwise"
@@ -477,12 +500,12 @@ export default function AdminOrders() {
                 />
               )
             }
-            // Cancelled tab: read-only items, but can restore the whole order
             return (
               <OrderCard
                 key={o.id}
                 order={o}
                 canEdit={false}
+                highlightPreparing={false}
                 onAction={handleRestore}
                 actionLabel={acting === o.id ? 'Restoring…' : 'Restore Order'}
                 actionIcon="bi-arrow-counterclockwise"
@@ -499,4 +522,3 @@ export default function AdminOrders() {
     </div>
   )
 }
-

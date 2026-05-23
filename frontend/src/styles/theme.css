@@ -51,3 +51,46 @@
 
 /* Spinner / loaders inherit text-primary so they pick up the new color */
 .spinner-border.text-primary { color: #d6336c !important; }
+
+/* ── Order cards (admin kitchen + cashier my orders) ── */
+.order-card-preparing {
+  border-left: 4px solid var(--app-primary) !important;
+  background: var(--app-bg-tint);
+}
+
+.order-customer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.order-customer-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--app-primary-soft);
+  color: var(--app-primary-dark);
+  font-weight: 700;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid rgba(214, 51, 108, 0.25);
+}
+
+.order-customer-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #212529;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.order-card-total {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--app-primary);
+  white-space: nowrap;
+}

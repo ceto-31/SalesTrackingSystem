@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../middleware/auth.php';
+require_once __DIR__ . '/../../lib/order_filters.php';
 
 header('Content-Type: application/json');
 
@@ -41,11 +42,11 @@ $db = getDB();
 
 $sql = "SELECT
             oi.product_id,
-            SUM(oi.quantity - oi.cancelled_quantity) AS total_sold
+            SUM(" . ORDER_ITEM_ACTIVE_QTY . ") AS total_sold
         FROM order_items oi
         JOIN orders o ON o.id = oi.order_id
         WHERE o.created_at >= (NOW() - INTERVAL ? DAY)
-          AND o.status IN ('preparing', 'completed', 'paid')
+          AND " . ORDER_TOP_PRODUCTS_SQL . "
         GROUP BY oi.product_id
         HAVING total_sold > 0
         ORDER BY total_sold DESC

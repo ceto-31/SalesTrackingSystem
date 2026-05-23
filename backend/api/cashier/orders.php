@@ -42,7 +42,7 @@ function orderEffectiveTotal(PDO $db, int $orderId): float
 if ($method === 'GET') {
     $stmt = $db->prepare(
         "SELECT
-             o.id, o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
+             o.id, o.daily_seq, o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
              JSON_ARRAYAGG(
                  JSON_OBJECT(
                      'item_id',            oi.id,
@@ -82,6 +82,7 @@ if ($method === 'GET') {
         $order['amount_paid']  = isset($order['amount_paid']) && $order['amount_paid'] !== null
             ? (float)$order['amount_paid']
             : null;
+        $order['daily_seq']    = (int)($order['daily_seq'] ?? 0);
         // Virtual 'cancelled' status: every line fully cancelled.
         if ($totalActiveQty === 0) {
             $order['status'] = 'cancelled';
