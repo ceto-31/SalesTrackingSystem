@@ -4,4 +4,7 @@
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Product images: serve from Railway S3 bucket or local disk.
+    RewriteRule ^uploads/products/([a-f0-9]{32}\.(jpg|jpeg|png|webp|gif))$ api/uploads/serve.php?file=$1 [L,QSA,NC]
 </IfModule>

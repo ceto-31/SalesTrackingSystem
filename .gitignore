@@ -1,5 +1,6 @@
 # Dependencies
 frontend/node_modules/
+backend/vendor/
 
 # Build output
 frontend/dist/

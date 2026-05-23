@@ -23,6 +23,20 @@ $cashier = requireRole('cashier');
 $method = $_SERVER['REQUEST_METHOD'];
 $db     = getDB();
 
+/**
+ * Compute billable total after item cancellations.
+ */
+function orderEffectiveTotal(PDO $db, int $orderId): float
+{
+    $stmt = $db->prepare(
+        'SELECT COALESCE(SUM(GREATEST(oi.quantity - oi.cancelled_quantity, 0) * oi.unit_price), 0) AS total
+         FROM order_items oi
+         WHERE oi.order_id = ?'
+    );
+    $stmt->execute([$orderId]);
+    return (float)($stmt->fetch()['total'] ?? 0);
+}
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 if ($method === 'GET') {
@@ -251,7 +265,12 @@ if ($method === 'PUT') {
     // Variant: mark order as paid (records tendered amount).
     if (array_key_exists('amount_paid', $body)) {
         $amountPaid = (float)$body['amount_paid'];
-        $total      = (float)$row['total_amount'];
+        $total      = orderEffectiveTotal($db, $id);
+        if ($total <= 0) {
+            http_response_code(422);
+            echo json_encode(['error' => 'Order has no billable items']);
+            exit;
+        }
         if ($amountPaid < $total) {
             http_response_code(422);
             echo json_encode(['error' => 'amount_paid must be >= total']);
@@ -259,19 +278,13 @@ if ($method === 'PUT') {
         }
         $db->prepare('UPDATE orders SET amount_paid = ? WHERE id = ?')
            ->execute([$amountPaid, $id]);
-        echo json_encode(['id' => $id, 'amount_paid' => $amountPaid]);
+        echo json_encode(['id' => $id, 'amount_paid' => $amountPaid, 'total_amount' => $total]);
         exit;
     }
 
-    $status = $body['status'] ?? '';
-    if (!in_array($status, ['paid', 'unpaid', 'preparing', 'completed'], true)) {
-        http_response_code(422);
-        echo json_encode(['error' => 'invalid status']);
-        exit;
-    }
-
-    $db->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
-    echo json_encode(['id' => $id, 'status' => $status]);
+    // Cashiers may not change kitchen status — payment only via amount_paid above.
+    http_response_code(422);
+    echo json_encode(['error' => 'Only amount_paid updates are allowed']);
     exit;
 }
 

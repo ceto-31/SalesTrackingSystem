@@ -18,6 +18,7 @@ export default function OrderList() {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState('')
   const [search,    setSearch]    = useState('')
+  const [filter,    setFilter]    = useState('all') // 'all' | 'unpaid' | 'paid'
   const [selected,  setSelected]  = useState(() => new Set())
 
   // Pay modal: { ids: number[], total: number } or null
@@ -47,15 +48,30 @@ export default function OrderList() {
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const filteredOrders = useMemo(() => {
+    let list = orders
+    if (filter === 'unpaid') list = list.filter(isUnpaid)
+    if (filter === 'paid')   list = list.filter(isPaid)
+
     const q = search.trim().toLowerCase()
-    if (!q) return orders
-    return orders.filter((o) =>
+    if (!q) return list
+    return list.filter((o) =>
       String(o.id).includes(q) ||
       (o.customer_name || '').toLowerCase().includes(q),
     )
-  }, [orders, search])
+  }, [orders, search, filter])
 
   const isUnpaid = (o) => o.status !== 'cancelled' && (o.amount_paid === null || o.amount_paid === undefined)
+  const isPaid   = (o) => o.status !== 'cancelled' && o.amount_paid !== null && o.amount_paid !== undefined
+
+  const unpaidOrders = useMemo(
+    () => orders.filter(isUnpaid),
+    [orders],
+  )
+
+  const unpaidTotalAll = useMemo(
+    () => unpaidOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0),
+    [unpaidOrders],
+  )
 
   const toggleSelect = (id) => {
     setSelected((prev) => {
@@ -128,9 +144,68 @@ export default function OrderList() {
         <h4 className="fw-bold mb-0">
           <i className="bi bi-list-ul me-2 text-primary" /> My Orders
         </h4>
-        <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchOrders({ silent: true })}>
-          <i className="bi bi-arrow-clockwise me-1" /> Refresh
-        </button>
+        <div className="d-flex gap-2 flex-wrap">
+          {unpaidOrders.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-success btn-sm"
+              onClick={() =>
+                openPayModal(
+                  unpaidOrders.map((o) => o.id),
+                  unpaidTotalAll,
+                )
+              }
+            >
+              <i className="bi bi-cash-stack me-1" />
+              Pay All Unpaid ({unpaidOrders.length})
+            </button>
+          )}
+          <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchOrders({ silent: true })}>
+            <i className="bi bi-arrow-clockwise me-1" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {unpaidOrders.length > 0 && (
+        <div className="alert alert-warning py-2 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <span className="small mb-0">
+            <i className="bi bi-exclamation-circle me-1" />
+            <strong>{unpaidOrders.length}</strong> unpaid order(s) — total{' '}
+            <strong>₱{unpaidTotalAll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong>
+          </span>
+          <button
+            type="button"
+            className="btn btn-success btn-sm"
+            onClick={() =>
+              openPayModal(
+                unpaidOrders.map((o) => o.id),
+                unpaidTotalAll,
+              )
+            }
+          >
+            <i className="bi bi-cash-coin me-1" /> Pay Now
+          </button>
+        </div>
+      )}
+
+      <div className="btn-group btn-group-sm mb-3" role="group" aria-label="Order filter">
+        {[
+          { key: 'all',    label: 'All' },
+          { key: 'unpaid', label: 'Unpaid' },
+          { key: 'paid',   label: 'Paid' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            className={`btn ${filter === key ? 'btn-primary' : 'btn-outline-secondary'}`}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+            {key === 'unpaid' && unpaidOrders.length > 0 && (
+              <span className="badge bg-light text-dark ms-1">{unpaidOrders.length}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="input-group input-group-sm mb-3" style={{ maxWidth: 360 }}>
@@ -156,7 +231,13 @@ export default function OrderList() {
       ) : filteredOrders.length === 0 ? (
         <div className="text-center text-muted py-5">
           <i className="bi bi-receipt fs-1 d-block mb-2" />
-          {orders.length === 0 ? 'No orders yet.' : 'No orders match your search.'}
+          {orders.length === 0
+            ? 'No orders yet.'
+            : filter === 'unpaid'
+              ? 'No unpaid orders.'
+              : filter === 'paid'
+                ? 'No paid orders.'
+                : 'No orders match your search.'}
         </div>
       ) : (
         <div className="d-flex flex-column gap-3">

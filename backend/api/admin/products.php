@@ -11,6 +11,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config/db.php';
 require_once __DIR__ . '/../../middleware/auth.php';
+require_once __DIR__ . '/../../lib/ObjectStorage.php';
+
+use App\ObjectStorage;
 
 header('Content-Type: application/json');
 
@@ -82,36 +85,22 @@ function handleImageUpload(): ?string
         exit;
     }
 
-    $uploadDir = __DIR__ . '/../../uploads/products/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-
     // Always assign our own safe extension based on detected MIME — never
     // honor the client-supplied filename's extension.
-    $ext      = $allowed[$actualType];
-    $filename = bin2hex(random_bytes(16)) . '.' . $ext;
-    $dest     = $uploadDir . $filename;
+    $ext = $allowed[$actualType];
 
-    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+    try {
+        return ObjectStorage::get()->storeUploadedImage($file['tmp_name'], $actualType, $ext, true);
+    } catch (\Throwable) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to save image']);
         exit;
     }
-    @chmod($dest, 0644);
-
-    return 'uploads/products/' . $filename;
 }
 
 function deleteImageFile(?string $path): void
 {
-    if ($path === null) {
-        return;
-    }
-    $full = __DIR__ . '/../../' . $path;
-    if (file_exists($full)) {
-        @unlink($full);
-    }
+    ObjectStorage::get()->delete($path);
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────

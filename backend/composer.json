@@ -1,0 +1,13 @@
+{
+  "name": "order-tracking/backend",
+  "description": "Order Tracking System PHP API",
+  "require": {
+    "php": ">=8.2",
+    "aws/aws-sdk-php": "^3.300"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "lib/"
+    }
+  }
+}
