@@ -11,7 +11,8 @@ require_once __DIR__ . '/../../lib/ObjectStorage.php';
 use App\ObjectStorage;
 
 $file = basename((string)($_GET['file'] ?? ''));
-if ($file === '' || !preg_match('/^[a-f0-9]{32}\.(jpg|jpeg|png|webp|gif)$/i', $file)) {
+// Hashed uploads OR catalog names like lomi.jpg, pancit.jpg
+if ($file === '' || !preg_match('/^(?:[a-f0-9]{32}|[a-z][a-z0-9_-]{0,48})\.(jpg|jpeg|png|webp|gif)$/i', $file)) {
     http_response_code(400);
     exit('Invalid file');
 }

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createProduct, updateProduct, getCategories } from '../../services/api'
+import ProductImage, { productImageUrl } from '../shared/ProductImage'
 
 const EMPTY = { name: '', price: '', variety: '' }
 
@@ -29,7 +30,7 @@ export default function ProductForm({ product, onSaved, onClose }) {
   useEffect(() => {
     if (product) {
       setFields({ name: product.name, price: product.price, variety: product.variety })
-      setPreview(product.image ? `/${product.image}` : null)
+      setPreview(product.image ? productImageUrl(product.image) : null)
     } else {
       setFields(EMPTY)
       setPreview(null)
@@ -89,21 +90,16 @@ export default function ProductForm({ product, onSaved, onClose }) {
               {error && <div className="alert alert-danger py-2">{error}</div>}
 
               {/* Image upload */}
-              <div className="mb-3 text-center">
+              <div className="mb-3 text-center mx-auto" style={{ maxWidth: 140 }}>
                 {preview ? (
                   <img
                     src={preview}
                     alt="preview"
-                    className="rounded mb-2"
-                    style={{ width: 120, height: 120, objectFit: 'cover' }}
+                    className="product-image-fit rounded"
+                    style={{ width: 120, height: 120, objectFit: 'cover', objectPosition: 'center' }}
                   />
                 ) : (
-                  <div
-                    className="rounded bg-light d-inline-flex align-items-center justify-content-center mb-2"
-                    style={{ width: 120, height: 120 }}
-                  >
-                    <i className="bi bi-image fs-1 text-muted" />
-                  </div>
+                  <ProductImage src={null} alt="Product" aspect="square" />
                 )}
                 <div>
                   <button

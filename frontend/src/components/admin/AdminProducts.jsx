@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { getAdminProducts, deleteProduct } from '../../services/api'
 import ProductForm from './ProductForm'
+import ProductImage, { productImageUrl } from '../shared/ProductImage'
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([])
@@ -113,21 +114,14 @@ export default function AdminProducts() {
                 {filteredProducts.map((p) => (
                   <tr key={p.id}>
                     <td>
-                      {p.image ? (
-                        <img
-                          src={`/${p.image}`}
+                      <div className="product-image-thumb-wrap">
+                        <ProductImage
+                          src={productImageUrl(p.image)}
                           alt={p.name}
-                          style={{ width: 48, height: 48, objectFit: 'cover' }}
-                          className="rounded"
+                          aspect="square"
+                          rounded
                         />
-                      ) : (
-                        <div
-                          className="rounded bg-light d-flex align-items-center justify-content-center"
-                          style={{ width: 48, height: 48 }}
-                        >
-                          <i className="bi bi-image text-muted" />
-                        </div>
-                      )}
+                      </div>
                     </td>
                     <td className="fw-semibold">
                       {p.name}

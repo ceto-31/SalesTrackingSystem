@@ -18,6 +18,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
 
 COPY backend/ /var/www/html/
 
+# Seed shared catalog images into uploads (lomi, pancit, sisilog, …)
+RUN cp -f /var/www/html/catalog/*.jpg /var/www/html/uploads/products/ 2>/dev/null || true
+
 # Ensure uploads directory exists with correct ownership
 RUN chmod +x /entrypoint.sh \
     && mkdir -p /var/www/html/uploads/products /var/www/html/uploads/sessions \

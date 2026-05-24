@@ -4,6 +4,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { getProducts, getTopProducts, createOrder } from '../../services/api'
 import ReceiptModal from './ReceiptModal'
+import ProductImage, { productImageUrl } from '../shared/ProductImage'
+
+function fmtMoney(n) {
+  return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+}
 
 export default function NewOrder() {
   const [products,      setProducts]      = useState([])
@@ -216,20 +221,13 @@ export default function NewOrder() {
                       </span>
                     )}
                     {p.image ? (
-                      <div className="ratio ratio-1x1">
-                        <img
-                          src={`/${p.image}`}
-                          alt={p.name}
-                          className="card-img-top"
-                          style={{ objectFit: 'cover' }}
-                        />
-                      </div>
+                      <ProductImage
+                        src={productImageUrl(p.image)}
+                        alt={p.name}
+                        className="product-image-box--rounded"
+                      />
                     ) : (
-                      <div className="ratio ratio-1x1">
-                        <div className="bg-light d-flex align-items-center justify-content-center">
-                          <i className="bi bi-image fs-2 text-muted" />
-                        </div>
-                      </div>
+                      <ProductImage src={null} alt={p.name} className="product-image-box--rounded" />
                     )}
                     <div className="card-body p-2">
                       <div className="fw-semibold small text-truncate">{p.name}</div>
@@ -352,8 +350,18 @@ export default function NewOrder() {
                 const valid = !Number.isNaN(t)
                 const change = valid ? t - total : 0
                 const isShort = valid && change < 0
+                const isExact = valid && Math.abs(change) < 0.005
                 return (
                   <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-success btn-sm w-100 mb-2"
+                      onClick={() => setTendered(total.toFixed(2))}
+                      disabled={total <= 0}
+                    >
+                      <i className="bi bi-check2-circle me-1" />
+                      Exact Amount — ₱{fmtMoney(total)}
+                    </button>
                     <div className="input-group input-group-sm">
                       <span className="input-group-text">₱</span>
                       <input
@@ -361,20 +369,24 @@ export default function NewOrder() {
                         inputMode="decimal"
                         step="0.01"
                         min="0"
-                        className={`form-control ${isShort ? 'border-danger' : ''}`}
+                        className={`form-control ${isShort ? 'border-danger' : isExact ? 'border-primary' : ''}`}
                         placeholder="Amount tendered"
                         value={tendered}
                         onChange={(e) => setTendered(e.target.value)}
                       />
                     </div>
                     <div className="d-flex justify-content-between mt-1 small">
-                      <span className="text-muted">Change</span>
-                      <span className={isShort ? 'text-danger fw-bold' : 'text-success fw-bold'}>
+                      <span className="text-muted">
+                        {isExact ? 'Exact amount — no change' : 'Change'}
+                      </span>
+                      <span className={isShort ? 'text-danger fw-bold' : isExact ? 'text-primary fw-bold' : 'text-success fw-bold'}>
                         {!valid
                           ? '—'
                           : isShort
-                            ? `Insufficient (short ₱${Math.abs(change).toLocaleString('en-PH', { minimumFractionDigits: 2 })})`
-                            : `₱${change.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+                            ? `Insufficient (short ₱${fmtMoney(Math.abs(change))})`
+                            : isExact
+                              ? '₱0.00'
+                              : `₱${fmtMoney(change)}`}
                       </span>
                     </div>
                   </div>

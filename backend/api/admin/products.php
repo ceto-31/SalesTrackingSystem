@@ -103,6 +103,61 @@ function deleteImageFile(?string $path): void
     ObjectStorage::get()->delete($path);
 }
 
+function countImageReferences(PDO $db, string $path, ?int $excludeId = null): int
+{
+    $sql = 'SELECT COUNT(*) AS c FROM products WHERE image = ?';
+    $params = [$path];
+    if ($excludeId !== null) {
+        $sql .= ' AND id != ?';
+        $params[] = $excludeId;
+    }
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    return (int)($stmt->fetch()['c'] ?? 0);
+}
+
+function deleteImageIfUnused(PDO $db, ?string $path, ?int $excludeId = null): void
+{
+    if ($path === null || $path === '') {
+        return;
+    }
+    if (countImageReferences($db, $path, $excludeId) > 0) {
+        return;
+    }
+    deleteImageFile($path);
+}
+
+function resolveExistingImagePath(?string $path): ?string
+{
+    if ($path === null || $path === '') {
+        return null;
+    }
+    $path = trim($path);
+    if (!preg_match('#^uploads/products/(?:[a-f0-9]{32}|[a-z][a-z0-9_-]{0,48})\.(jpg|jpeg|png|webp|gif)$#i', $path)) {
+        return null;
+    }
+    $local = __DIR__ . '/../../' . $path;
+    $catalog = __DIR__ . '/../../catalog/' . basename($path);
+    if (!is_file($local) && !is_file($catalog)) {
+        return null;
+    }
+    return $path;
+}
+
+function resolveProductImage(): ?string
+{
+    if (!empty($_FILES['image']['tmp_name'])) {
+        return handleImageUpload();
+    }
+
+    $existing = resolveExistingImagePath(trim((string)($_POST['existing_image'] ?? '')));
+    if ($existing !== null) {
+        return $existing;
+    }
+
+    return null;
+}
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 if ($method === 'GET') {
@@ -130,7 +185,7 @@ if ($method === 'POST') {
         exit;
     }
 
-    $imagePath = handleImageUpload();
+    $imagePath = resolveProductImage();
 
     $stmt = $db->prepare(
         'INSERT INTO products (name, price, variety, image) VALUES (?, ?, ?, ?)'
@@ -197,9 +252,9 @@ if ($method === 'PUT') {
         exit;
     }
 
-    $newImage = handleImageUpload();
-    if ($newImage !== null && $old['image'] !== null) {
-        deleteImageFile($old['image']);
+    $newImage = resolveProductImage();
+    if ($newImage !== null && $newImage !== $old['image']) {
+        deleteImageIfUnused($db, $old['image'], $id);
     }
     $imagePath = $newImage ?? $old['image'];
 
@@ -235,7 +290,7 @@ if ($method === 'DELETE') {
     }
 
     $db->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
-    deleteImageFile($row['image']);
+    deleteImageIfUnused($db, $row['image'], null);
 
     echo json_encode(['message' => 'Product deleted']);
     exit;

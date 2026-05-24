@@ -104,7 +104,53 @@ final class ObjectStorage
         return $dbPath;
     }
 
-    public function delete(?string $dbPath): void
+    /**
+     * Copy a committed catalog file into uploads (and S3 when enabled).
+     * Used for shared product images like lomi.jpg, pancit.jpg.
+     */
+    public function publishCatalogFile(string $filename): string
+    {
+        if (!preg_match('/^[a-z][a-z0-9_-]{0,48}\.(jpg|jpeg|png|webp|gif)$/i', $filename)) {
+            throw new \InvalidArgumentException('Invalid catalog filename');
+        }
+
+        $src = __DIR__ . '/../catalog/' . $filename;
+        if (!is_file($src)) {
+            throw new \RuntimeException("Catalog file missing: {$filename}");
+        }
+
+        $dbPath = 'uploads/products/' . $filename;
+        $uploadDir = __DIR__ . '/../uploads/products/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $dest = $uploadDir . $filename;
+        if (!is_file($dest)) {
+            if (!copy($src, $dest)) {
+                throw new \RuntimeException("Failed to copy catalog file: {$filename}");
+            }
+            @chmod($dest, 0644);
+        }
+
+        if ($this->useS3) {
+            $body = file_get_contents($dest);
+            if ($body === false) {
+                throw new \RuntimeException("Failed to read catalog file: {$filename}");
+            }
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime  = finfo_file($finfo, $dest) ?: 'image/jpeg';
+            finfo_close($finfo);
+            $this->client->putObject([
+                'Bucket'       => $this->bucket,
+                'Key'          => 'products/' . $filename,
+                'Body'         => $body,
+                'ContentType'  => $mime,
+                'CacheControl' => 'public, max-age=31536000',
+            ]);
+        }
+
+        return $dbPath;
+    }
     {
         if ($dbPath === null || $dbPath === '') {
             return;
