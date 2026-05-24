@@ -151,6 +151,8 @@ final class ObjectStorage
 
         return $dbPath;
     }
+
+    public function delete(?string $dbPath): void
     {
         if ($dbPath === null || $dbPath === '') {
             return;
