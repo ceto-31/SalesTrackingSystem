@@ -54,7 +54,7 @@ if ($method === 'GET') {
     $sql = "SELECT
                 o.id,
                 o.daily_seq,
-                o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.created_at,
+                o.customer_name, o.total_amount, o.amount_paid, o.status, o.order_type, o.notes, o.payment_note, o.created_at,
                 u.username AS cashier_name,
                 JSON_ARRAYAGG(
                     JSON_OBJECT(
@@ -64,6 +64,7 @@ if ($method === 'GET') {
                         'variety',            p.variety,
                         'quantity',           oi.quantity,
                         'cancelled_quantity', oi.cancelled_quantity,
+                        'paid_quantity',      COALESCE(oi.paid_quantity, 0),
                         'unit_price',         oi.unit_price
                     )
                 ) AS items
