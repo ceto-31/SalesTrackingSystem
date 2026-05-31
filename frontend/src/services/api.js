@@ -130,8 +130,22 @@ export const createOrder = (customerName, status, items, orderType = 'dine_in', 
 export const updateOrderStatus = (id, status) =>
   api.put(`/cashier/orders.php?id=${id}`, { status })
 
-export const markOrderPaid = (id, amountPaid) =>
-  api.put(`/cashier/orders.php?id=${id}`, { amount_paid: amountPaid })
+export const markOrderPaid = (id, amountPaid, paymentNote = '') =>
+  api.put(`/cashier/orders.php?id=${id}`, {
+    amount_paid: amountPaid,
+    payment_note: paymentNote,
+  })
+
+export const payOrderItems = (id, items, amountTendered, paymentNote = '') =>
+  api.put(`/cashier/orders.php?id=${id}`, {
+    action: 'pay_items',
+    items,
+    amount_tendered: amountTendered,
+    payment_note: paymentNote,
+  })
+
+export const editCashierOrder = (id, payload) =>
+  api.put(`/cashier/orders.php?id=${id}`, { action: 'edit', ...payload })
 
 // ── Shared — Products ────────────────────────────────────────────────────────
 
