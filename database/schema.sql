@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
   status        ENUM('unpaid','paid','preparing','completed') NOT NULL DEFAULT 'unpaid',
   order_type    ENUM('dine_in','takeout') NOT NULL DEFAULT 'dine_in',
   notes         VARCHAR(255)    NULL,
+  payment_note  VARCHAR(255)    NULL,
   created_at    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_cashier FOREIGN KEY (cashier_id)
     REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   product_id         INT UNSIGNED  NOT NULL,
   quantity           INT UNSIGNED  NOT NULL DEFAULT 1,
   cancelled_quantity INT UNSIGNED  NOT NULL DEFAULT 0,
+  paid_quantity      INT UNSIGNED  NOT NULL DEFAULT 0,
   unit_price         DECIMAL(10,2) NOT NULL,
   is_cancelled       TINYINT(1)    NOT NULL DEFAULT 0,
   CONSTRAINT fk_items_order   FOREIGN KEY (order_id)
