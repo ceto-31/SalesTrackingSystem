@@ -1,10 +1,13 @@
 // src/components/cashier/NewOrder.jsx
 // Cashier: take a new order — pick products, set customer name, choose paid/unpaid.
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { getProducts, getTopProducts, createOrder } from '../../services/api'
 import ReceiptModal from './ReceiptModal'
 import ProductImage, { productImageUrl } from '../shared/ProductImage'
+
+const PRODUCTS_PER_PAGE = 12
+const MAX_SEARCH_SUGGESTIONS = 6
 
 function fmtMoney(n) {
   return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
@@ -26,6 +29,12 @@ export default function NewOrder() {
   const [topRanks,      setTopRanks]      = useState({})  // { productId: rank (1-based) }
   const [paymentMode,   setPaymentMode]   = useState('unpaid') // 'unpaid' | 'paid'
   const [tendered,      setTendered]      = useState('')
+  const [productPage,   setProductPage]   = useState(1)
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [highlightIndex, setHighlightIndex] = useState(-1)
+  const rootRef = useRef(null)
+  const searchInputRef = useRef(null)
+  const searchBlurTimerRef = useRef(null)
 
   useEffect(() => {
     getTopProducts(30)
@@ -77,6 +86,101 @@ export default function NewOrder() {
       return 0
     })
   }, [products, filterVariety, search, topRanks])
+
+  useEffect(() => {
+    setProductPage(1)
+  }, [search, filterVariety, products])
+
+  const totalProductPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE))
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * PRODUCTS_PER_PAGE
+    return filtered.slice(start, start + PRODUCTS_PER_PAGE)
+  }, [filtered, productPage])
+
+  const searchSuggestions = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return []
+
+    let list = filterVariety === 'All'
+      ? products
+      : products.filter((p) => p.variety === filterVariety)
+
+    list = list.filter((p) => p.name.toLowerCase().includes(q))
+
+    return [...list]
+      .sort((a, b) => {
+        const ra = topRanks[a.id]
+        const rb = topRanks[b.id]
+        if (ra && rb) return ra - rb
+        if (ra) return -1
+        if (rb) return 1
+        return a.name.localeCompare(b.name)
+      })
+      .slice(0, MAX_SEARCH_SUGGESTIONS)
+  }, [products, filterVariety, search, topRanks])
+
+  const showSearchDropdown =
+    searchFocused && search.trim() !== '' && searchSuggestions.length > 0
+
+  useEffect(() => {
+    setHighlightIndex(-1)
+  }, [search, searchSuggestions])
+
+  useEffect(() => () => {
+    if (searchBlurTimerRef.current) clearTimeout(searchBlurTimerRef.current)
+  }, [])
+
+  const selectSearchSuggestion = (product) => {
+    setSearch(product.name)
+    setSearchFocused(false)
+    setHighlightIndex(-1)
+  }
+
+  const handleSearchFocus = () => {
+    if (searchBlurTimerRef.current) {
+      clearTimeout(searchBlurTimerRef.current)
+      searchBlurTimerRef.current = null
+    }
+    setSearchFocused(true)
+  }
+
+  const handleSearchBlur = () => {
+    searchBlurTimerRef.current = setTimeout(() => {
+      setSearchFocused(false)
+      setHighlightIndex(-1)
+    }, 150)
+  }
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearch(value)
+    if (!value.trim()) {
+      setSearchFocused(false)
+      setHighlightIndex(-1)
+    }
+  }
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      setSearchFocused(false)
+      setHighlightIndex(-1)
+      return
+    }
+
+    if (!showSearchDropdown) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightIndex((i) => Math.min(i + 1, searchSuggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightIndex((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && highlightIndex >= 0) {
+      e.preventDefault()
+      selectSearchSuggestion(searchSuggestions[highlightIndex])
+    }
+  }
 
   const addToCart = (product) => {
     setCart((prev) => {
@@ -146,6 +250,12 @@ export default function NewOrder() {
       setTendered('')
       setSuccessMsg('Order sent to kitchen!')
       setTimeout(() => setSuccessMsg(''), 3000)
+      const scrollParent = rootRef.current?.closest('main')
+      if (scrollParent) {
+        scrollParent.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     } catch (err) {
       setError(err.response?.data?.error ?? 'Failed to place order.')
     } finally {
@@ -155,6 +265,7 @@ export default function NewOrder() {
 
   return (
     <div
+      ref={rootRef}
       className="row g-4"
       style={cart.length > 0 ? { paddingBottom: 96 } : undefined}
     >
@@ -164,18 +275,85 @@ export default function NewOrder() {
           <h5 className="fw-bold mb-0">
             <i className="bi bi-grid me-2 text-primary" /> Products
           </h5>
-          <div className="input-group input-group-sm" style={{ maxWidth: 260 }}>
-            <span className="input-group-text bg-white">
-              <i className="bi bi-search" />
-            </span>
-            <input
-              type="search"
-              className="form-control"
-              placeholder="Search products…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search products"
-            />
+          <div className="position-relative" style={{ maxWidth: 260, width: '100%' }}>
+            <div className="input-group input-group-sm">
+              <span className="input-group-text bg-white">
+                <i className="bi bi-search" />
+              </span>
+              <input
+                ref={searchInputRef}
+                type="search"
+                className="form-control"
+                placeholder="Search products…"
+                value={search}
+                onChange={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
+                aria-label="Search products"
+                role="combobox"
+                aria-expanded={showSearchDropdown}
+                aria-autocomplete="list"
+                aria-controls="product-search-suggestions"
+                aria-activedescendant={
+                  highlightIndex >= 0 && searchSuggestions[highlightIndex]
+                    ? `product-suggestion-${searchSuggestions[highlightIndex].id}`
+                    : undefined
+                }
+              />
+            </div>
+            {showSearchDropdown && (
+              <ul
+                id="product-search-suggestions"
+                className="list-group position-absolute w-100 shadow-sm border-0"
+                style={{ top: '100%', zIndex: 1050, marginTop: 2 }}
+                role="listbox"
+              >
+                {searchSuggestions.map((p, idx) => {
+                  const rank = topRanks[p.id]
+                  const highlighted = idx === highlightIndex
+                  return (
+                    <li
+                      key={p.id}
+                      id={`product-suggestion-${p.id}`}
+                      role="option"
+                      aria-selected={highlighted}
+                      className={`list-group-item list-group-item-action py-2 px-2 border-0 border-bottom ${
+                        highlighted ? 'bg-light border-start border-primary border-3' : ''
+                      }`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectSearchSuggestion(p)}
+                      onMouseEnter={() => setHighlightIndex(idx)}
+                    >
+                      <div className="d-flex align-items-start justify-content-between gap-2">
+                        <div className="min-w-0 flex-grow-1">
+                          <div className="fw-semibold small text-truncate">{p.name}</div>
+                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>{p.variety}</div>
+                        </div>
+                        <div className="text-end flex-shrink-0">
+                          {rank && rank <= 3 && (
+                            <span
+                              className="badge d-block mb-1"
+                              style={{
+                                background: '#f1c40f',
+                                color: '#5c4500',
+                                fontSize: '0.65rem',
+                              }}
+                            >
+                              <i className="bi bi-star-fill me-1" />
+                              Top
+                            </span>
+                          )}
+                          <div className="fw-bold text-primary small">
+                            ₱{fmtMoney(p.price)}
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </div>
         </div>
         <div className="d-flex gap-1 flex-wrap mb-3">
@@ -194,8 +372,9 @@ export default function NewOrder() {
         {error && <div className="alert alert-danger">{error}</div>}
 
         {!loading && (
+          <>
           <div className="row g-3">
-            {filtered.map((p) => {
+            {paginatedProducts.map((p) => {
               const inCart = cart.find((i) => i.product.id === p.id)
               const rank = topRanks[p.id]
               return (
@@ -246,6 +425,30 @@ export default function NewOrder() {
               )
             })}
           </div>
+          {filtered.length > 0 && (
+            <div className="d-flex align-items-center justify-content-center gap-3 mt-3">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                disabled={productPage <= 1}
+                onClick={() => setProductPage((p) => p - 1)}
+              >
+                Previous
+              </button>
+              <span className="small text-muted">
+                Page {productPage} of {totalProductPages}
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                disabled={productPage >= totalProductPages}
+                onClick={() => setProductPage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+          </>
         )}
       </div>
 
