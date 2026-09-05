@@ -60,6 +60,8 @@ const PAYMENT_BADGE = {
   paid:    { label: 'Paid',    cls: 'bg-success'           },
 }
 
+const ORDERS_PER_PAGE = 10
+
 export default function OrderList() {
   const [orders,       setOrders]       = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -77,8 +79,9 @@ export default function OrderList() {
   const [partialSel,   setPartialSel]   = useState({})
   const [partialTendered, setPartialTendered] = useState('')
   const [partialNote,  setPartialNote]  = useState('')
+  const [orderPage,    setOrderPage]    = useState(1)
 
-  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+  const fetchOrders = useCallback(async ({ silent = false, resetPage = false } = {}) => {
     if (!silent) setLoading(true)
     setError('')
     try {
@@ -93,6 +96,7 @@ export default function OrderList() {
       setError('Failed to load orders.')
     } finally {
       if (!silent) setLoading(false)
+      if (resetPage) setOrderPage(1)
     }
   }, [])
 
@@ -120,6 +124,22 @@ export default function OrderList() {
       (o.customer_name || '').toLowerCase().includes(q),
     )
   }, [orders, search, filter])
+
+  useEffect(() => {
+    setOrderPage(1)
+  }, [search, filter])
+
+  const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE))
+  const paginatedOrders = useMemo(() => {
+    const start = (orderPage - 1) * ORDERS_PER_PAGE
+    return filteredOrders.slice(start, start + ORDERS_PER_PAGE)
+  }, [filteredOrders, orderPage])
+
+  useEffect(() => {
+    if (orderPage > totalOrderPages) {
+      setOrderPage(totalOrderPages)
+    }
+  }, [orderPage, totalOrderPages])
 
   const unpaidOrders = useMemo(() => orders.filter(hasBalance), [orders])
 
@@ -220,7 +240,7 @@ export default function OrderList() {
       if (amount <= 0 && !isPartial(orders.find((o) => o.id === id))) continue
       await markOrderPaid(id, amount, note)
     }
-    await fetchOrders({ silent: true })
+    await fetchOrders({ silent: true, resetPage: true })
     setSelected(new Set())
     setPayModal(null)
     setTendered('')
@@ -251,7 +271,7 @@ export default function OrderList() {
         const amount = payModal.ids.length === 1 ? tenderedNum : due
         await markOrderPaid(id, amount, payNote.trim())
       }
-      await fetchOrders({ silent: true })
+      await fetchOrders({ silent: true, resetPage: true })
       setSelected(new Set())
       setPayModal(null)
       setTendered('')
@@ -277,8 +297,12 @@ export default function OrderList() {
         partialTenderedNum,
         partialNote.trim(),
       )
-      if (data?.order) mergeOrderUpdate(data.order)
-      else await fetchOrders({ silent: true })
+      if (data?.order) {
+        mergeOrderUpdate(data.order)
+        setOrderPage(1)
+      } else {
+        await fetchOrders({ silent: true, resetPage: true })
+      }
       closePartialModal()
     } catch (e) {
       setPayError(e?.response?.data?.error || 'Failed to record payment.')
@@ -412,8 +436,9 @@ export default function OrderList() {
                 : 'No orders match your search.'}
         </div>
       ) : (
+        <>
         <div className="d-flex flex-column gap-3">
-          {filteredOrders.map((order) => {
+          {paginatedOrders.map((order) => {
             const meta      = STATUS_META[order.status] ?? STATUS_META.preparing
             const cancelled = order.status === 'cancelled'
             const ps        = paymentStatus(order)
@@ -639,6 +664,28 @@ export default function OrderList() {
             )
           })}
         </div>
+        <div className="d-flex align-items-center justify-content-center gap-3 mt-3">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            disabled={orderPage <= 1}
+            onClick={() => setOrderPage((p) => p - 1)}
+          >
+            Previous
+          </button>
+          <span className="small text-muted">
+            Page {orderPage} of {totalOrderPages}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            disabled={orderPage >= totalOrderPages}
+            onClick={() => setOrderPage((p) => p + 1)}
+          >
+            Next
+          </button>
+        </div>
+        </>
       )}
 
       {selectionCount > 0 && (
@@ -968,6 +1015,7 @@ export default function OrderList() {
           onSaved={(updated) => {
             mergeOrderUpdate(updated)
             setEditOrder(null)
+            setOrderPage(1)
           }}
         />
       )}
