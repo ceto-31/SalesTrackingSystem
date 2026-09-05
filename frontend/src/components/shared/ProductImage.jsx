@@ -1,6 +1,6 @@
 // Uniform product image — scale/center within a fixed aspect box.
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import foodPlaceholderIcon from '../../assets/food-placeholder-icon.svg'
 
 /**
@@ -18,10 +18,13 @@ export default function ProductImage({
   aspect = 'square',
   rounded = true,
 }) {
-  const ratioClass = aspect === 'wide' ? 'ratio-4x3' : 'ratio ratio-1x1'
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [src])
+  const ratioClass = aspect === 'wide' ? 'ratio ratio-4x3' : 'ratio ratio-1x1'
   const roundClass = rounded ? 'product-image-box--rounded' : ''
+  const showPlaceholder = !src || failed
 
-  if (!src) {
+  if (showPlaceholder) {
     return (
       <div className={`${ratioClass} product-image-box product-image-box--empty ${roundClass} ${className}`.trim()}>
         <div className="product-image-placeholder">
@@ -44,6 +47,7 @@ export default function ProductImage({
         className="product-image-fit"
         loading="lazy"
         decoding="async"
+        onError={() => setFailed(true)}
       />
     </div>
   )

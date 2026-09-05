@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { getProducts, editCashierOrder } from '../../services/api'
 import ProductImage, { productImageUrl } from '../shared/ProductImage'
 
+const PRODUCTS_PER_PAGE = 6
+
 function fmtMoney(n) {
   return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
@@ -18,6 +20,83 @@ function unpaidQty(item) {
 
 function minQty(item) {
   return (item.paid_quantity || 0) + (item.cancelled_quantity || 0)
+}
+
+function productImageById(products, productId) {
+  const match = products.find((p) => p.id === productId)
+  return productImageUrl(match?.image)
+}
+
+function QtyStepper({ value, onDec, onInc, decDisabled }) {
+  return (
+    <div className="d-flex align-items-center gap-1">
+      <button
+        type="button"
+        className="btn btn-sm btn-outline-secondary"
+        style={{ padding: '0 6px', lineHeight: '1.4' }}
+        disabled={decDisabled}
+        onClick={onDec}
+      >
+        −
+      </button>
+      <span className="px-1 fw-bold" style={{ minWidth: 18, textAlign: 'center' }}>{value}</span>
+      <button
+        type="button"
+        className="btn btn-sm btn-outline-secondary"
+        style={{ padding: '0 6px', lineHeight: '1.4' }}
+        onClick={onInc}
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
+function ItemRow({
+  name,
+  imageSrc,
+  unitPrice,
+  quantity,
+  lineTotal,
+  extra,
+  onDec,
+  onInc,
+  decDisabled,
+  onRemove,
+}) {
+  return (
+    <div className="d-flex align-items-center gap-2 p-2 rounded border bg-light">
+      <div className="product-image-thumb-wrap">
+        <ProductImage src={imageSrc || null} alt={name} aspect="square" rounded />
+      </div>
+      <div className="flex-grow-1 min-w-0">
+        <div className="fw-semibold small text-truncate">{name}</div>
+        <div className="small text-muted">
+          ₱{fmtMoney(unitPrice)} each
+          {extra}
+        </div>
+      </div>
+      <QtyStepper
+        value={quantity}
+        onDec={onDec}
+        onInc={onInc}
+        decDisabled={decDisabled}
+      />
+      <div className="small fw-semibold text-nowrap" style={{ minWidth: 64, textAlign: 'right' }}>
+        ₱{fmtMoney(lineTotal)}
+      </div>
+      {onRemove && (
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-danger"
+          onClick={onRemove}
+          title="Remove item"
+        >
+          <i className="bi bi-trash" />
+        </button>
+      )}
+    </div>
+  )
 }
 
 export default function EditOrderModal({ order, onClose, onSaved }) {
@@ -36,6 +115,7 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
   const [cart, setCart] = useState([])
   const [search, setSearch] = useState('')
   const [filterVariety, setFilterVariety] = useState('All')
+  const [productPage, setProductPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -44,6 +124,12 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
       .then(({ data }) => setProducts(data || []))
       .catch(() => setError('Could not load products.'))
       .finally(() => setLoadingProducts(false))
+  }, [])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
   }, [])
 
   const varieties = useMemo(() => {
@@ -65,6 +151,20 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
     }
     return list
   }, [products, filterVariety, search])
+
+  useEffect(() => {
+    setProductPage(1)
+  }, [search, filterVariety, products])
+
+  const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE))
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * PRODUCTS_PER_PAGE
+    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE)
+  }, [filteredProducts, productPage])
+
+  useEffect(() => {
+    if (productPage > totalProductPages) setProductPage(totalProductPages)
+  }, [productPage, totalProductPages])
 
   const visibleLines = lines.filter((l) => !l._remove && activeQty(l) > 0)
 
@@ -173,7 +273,7 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
       />
       <div
         className="position-fixed top-50 start-50 translate-middle bg-white rounded-3 shadow-lg d-flex flex-column"
-        style={{ zIndex: 1060, width: 'min(720px, 96vw)', maxHeight: '92vh' }}
+        style={{ zIndex: 1060, width: 'min(960px, 96vw)', maxHeight: '92vh' }}
       >
         <div className="px-3 py-3 border-bottom flex-shrink-0">
           <div className="d-flex align-items-center justify-content-between">
@@ -194,10 +294,9 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
           </p>
         </div>
 
-        <div className="px-3 py-3 overflow-auto flex-grow-1">
-          {error && <div className="alert alert-danger py-2 small">{error}</div>}
-
-          <div className="row g-2 mb-3">
+        <div className="px-3 py-3 border-bottom flex-shrink-0">
+          {error && <div className="alert alert-danger py-2 small mb-3">{error}</div>}
+          <div className="row g-2">
             <div className="col-md-6">
               <label className="form-label small fw-semibold mb-1">Customer name</label>
               <input
@@ -230,152 +329,152 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
               />
             </div>
           </div>
+        </div>
 
-          <h6 className="fw-semibold mb-2">Current items</h6>
-          {visibleLines.length === 0 ? (
-            <p className="small text-muted">No items left — add products below.</p>
-          ) : (
-            <div className="d-flex flex-column gap-2 mb-3">
-              {visibleLines.map((line) => {
-                const paid = line.paid_quantity || 0
-                const floor = minQty(line)
-                const canRemove = paid === 0
-                return (
-                  <div
-                    key={line.item_id}
-                    className="d-flex align-items-center gap-2 p-2 rounded border bg-light"
-                  >
-                    <div className="flex-grow-1 min-w-0">
-                      <div className="fw-semibold text-truncate">{line.name}</div>
-                      <div className="small text-muted">
-                        ₱{fmtMoney(line.unit_price)} each
-                        {paid > 0 && (
+        <div className="px-3 py-3 flex-grow-1" style={{ minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <div className="row g-3">
+            <div className="col-md-5">
+              <h6 className="fw-semibold mb-2">Current items</h6>
+              {visibleLines.length === 0 ? (
+                <p className="small text-muted">No items left — add products on the right.</p>
+              ) : (
+                <div className="d-flex flex-column gap-2 mb-3">
+                  {visibleLines.map((line) => {
+                    const paid = line.paid_quantity || 0
+                    const floor = minQty(line)
+                    const qty = activeQty(line)
+                    return (
+                      <ItemRow
+                        key={line.item_id}
+                        name={line.name}
+                        imageSrc={productImageById(products, line.product_id)}
+                        unitPrice={line.unit_price}
+                        quantity={line.quantity}
+                        lineTotal={qty * line.unit_price}
+                        extra={paid > 0 ? (
                           <span className="badge bg-success ms-2">{paid} paid</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="d-flex align-items-center gap-1">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        disabled={line.quantity <= floor}
-                        onClick={() => changeLineQty(line.item_id, line.quantity - 1)}
-                      >
-                        −
-                      </button>
-                      <span className="px-2 fw-bold">{line.quantity}</span>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => changeLineQty(line.item_id, line.quantity + 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                    {canRemove && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => removeLine(line.item_id)}
-                        title="Remove item"
-                      >
-                        <i className="bi bi-trash" />
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          <h6 className="fw-semibold mb-2">Add products</h6>
-          <div className="d-flex flex-wrap gap-2 mb-2">
-            <div className="input-group input-group-sm" style={{ maxWidth: 200 }}>
-              <span className="input-group-text"><i className="bi bi-search" /></span>
-              <input
-                type="search"
-                className="form-control"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 160 }}
-              value={filterVariety}
-              onChange={(e) => setFilterVariety(e.target.value)}
-            >
-              {varieties.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
-          </div>
-
-          {loadingProducts ? (
-            <div className="text-center py-3">
-              <div className="spinner-border spinner-border-sm text-primary" />
-            </div>
-          ) : (
-            <div className="row g-2 mb-3" style={{ maxHeight: 220, overflowY: 'auto' }}>
-              {filteredProducts.slice(0, 24).map((p) => (
-                <div key={p.id} className="col-6 col-md-4">
-                  <button
-                    type="button"
-                    className="btn btn-light w-100 text-start p-2 border h-100"
-                    onClick={() => addToCart(p)}
-                  >
-                    <div className="d-flex gap-2 align-items-center">
-                      <ProductImage
-                        src={productImageUrl(p.image)}
-                        alt={p.name}
-                        aspect="square"
-                        className="flex-shrink-0"
-                        style={{ width: 40 }}
+                        ) : null}
+                        onDec={() => changeLineQty(line.item_id, line.quantity - 1)}
+                        onInc={() => changeLineQty(line.item_id, line.quantity + 1)}
+                        decDisabled={line.quantity <= floor}
+                        onRemove={paid === 0 ? () => removeLine(line.item_id) : undefined}
                       />
-                      <div className="min-w-0">
-                        <div className="small fw-semibold text-truncate">{p.name}</div>
-                        <div className="small text-primary">₱{fmtMoney(p.price)}</div>
-                      </div>
-                    </div>
-                  </button>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {cart.length > 0 && (
-            <>
               <h6 className="fw-semibold mb-2">New items to add</h6>
-              <div className="d-flex flex-column gap-2">
-                {cart.map((c) => (
-                  <div
-                    key={c.product.id}
-                    className="d-flex align-items-center gap-2 p-2 rounded border"
-                  >
-                    <span className="flex-grow-1">{c.product.name}</span>
-                    <div className="d-flex align-items-center gap-1">
+              {cart.length === 0 ? (
+                <p className="small text-muted mb-0">Click a product to add it.</p>
+              ) : (
+                <div className="d-flex flex-column gap-2">
+                  {cart.map((c) => (
+                    <ItemRow
+                      key={c.product.id}
+                      name={c.product.name}
+                      imageSrc={productImageUrl(c.product.image)}
+                      unitPrice={c.product.price}
+                      quantity={c.quantity}
+                      lineTotal={c.product.price * c.quantity}
+                      onDec={() => changeCartQty(c.product.id, c.quantity - 1)}
+                      onInc={() => changeCartQty(c.product.id, c.quantity + 1)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="col-md-7">
+              <h6 className="fw-semibold mb-2">Add products</h6>
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                <div className="input-group input-group-sm" style={{ maxWidth: 220 }}>
+                  <span className="input-group-text"><i className="bi bi-search" /></span>
+                  <input
+                    type="search"
+                    className="form-control"
+                    placeholder="Search…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="form-select form-select-sm"
+                  style={{ maxWidth: 160 }}
+                  value={filterVariety}
+                  onChange={(e) => setFilterVariety(e.target.value)}
+                >
+                  {varieties.map((v) => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              {loadingProducts ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border spinner-border-sm text-primary" />
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <p className="small text-muted mb-0">No products match that search.</p>
+              ) : (
+                <>
+                  <div className="row g-2">
+                    {paginatedProducts.map((p) => {
+                      const inCart = cart.find((c) => c.product.id === p.id)
+                      return (
+                        <div key={p.id} className="col-6 col-lg-4">
+                          <div
+                            className={`card h-100 border-0 shadow-sm product-card ${inCart ? 'border border-primary' : ''}`}
+                            style={{ cursor: 'pointer', position: 'relative' }}
+                            onClick={() => addToCart(p)}
+                          >
+                            <ProductImage
+                              src={productImageUrl(p.image)}
+                              alt={p.name}
+                              className="product-image-box--rounded"
+                            />
+                            <div className="card-body p-2">
+                              <div className="fw-semibold small text-truncate">{p.name}</div>
+                              <div className="text-muted" style={{ fontSize: '0.75rem' }}>{p.variety}</div>
+                              <div className="fw-bold text-primary mt-1">₱{fmtMoney(p.price)}</div>
+                              {inCart && (
+                                <span className="badge bg-primary position-absolute top-0 end-0 m-1">
+                                  ×{inCart.quantity}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {filteredProducts.length > PRODUCTS_PER_PAGE && (
+                    <div className="d-flex align-items-center justify-content-center gap-3 mt-3">
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-secondary"
-                        onClick={() => changeCartQty(c.product.id, c.quantity - 1)}
+                        disabled={productPage <= 1}
+                        onClick={() => setProductPage((p) => p - 1)}
                       >
-                        −
+                        Previous
                       </button>
-                      <span className="px-2 fw-bold">{c.quantity}</span>
+                      <span className="small text-muted">
+                        Page {productPage} of {totalProductPages}
+                      </span>
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-secondary"
-                        onClick={() => changeCartQty(c.product.id, c.quantity + 1)}
+                        disabled={productPage >= totalProductPages}
+                        onClick={() => setProductPage((p) => p + 1)}
                       >
-                        +
+                        Next
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="px-3 py-3 border-top flex-shrink-0 bg-white rounded-bottom-3">
