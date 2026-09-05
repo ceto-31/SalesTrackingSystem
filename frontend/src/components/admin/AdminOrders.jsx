@@ -12,6 +12,7 @@ import {
 import CustomerName from '../shared/CustomerName'
 
 const POLL_MS = 15000
+const ORDERS_PER_PAGE = 10
 
 function fmtMoney(n) {
   return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
@@ -30,6 +31,25 @@ function orderNum(order) {
 
 function isPaid(order) {
   return order.amount_paid !== null && order.amount_paid !== undefined
+}
+
+function itemActiveQty(it) {
+  return Math.max(0, (it.quantity || 0) - (it.cancelled_quantity || 0))
+}
+
+/** unpaid | partial | paid — display-only; Paid still requires amount_paid set */
+function orderPaymentState(order) {
+  if (isPaid(order)) return 'paid'
+  const items = order.items ?? []
+  let totalActive = 0
+  let totalPaidUnits = 0
+  for (const it of items) {
+    const active = itemActiveQty(it)
+    totalActive += active
+    totalPaidUnits += Math.min(active, it.paid_quantity || 0)
+  }
+  if (totalActive === 0 || totalPaidUnits === 0) return 'unpaid'
+  return 'partial'
 }
 
 function isExactPayment(order, total) {
@@ -52,8 +72,12 @@ function OrderTypeBadge({ orderType }) {
 
 function PaymentBadge({ order }) {
   if (order.status === 'cancelled') return null
-  if (isPaid(order)) {
+  const state = orderPaymentState(order)
+  if (state === 'paid') {
     return <span className="badge bg-success">Paid</span>
+  }
+  if (state === 'partial') {
+    return <span className="badge bg-info text-dark">Partial</span>
   }
   return <span className="badge bg-warning text-dark">Unpaid</span>
 }
@@ -257,6 +281,7 @@ export default function AdminOrders() {
   const [search,      setSearch]      = useState('')
   const [acting,      setActing]      = useState(0)
   const [busyItemId,  setBusyItemId]  = useState(0)
+  const [page,        setPage]        = useState(1)
 
   const fetchTabCounts = useCallback(async () => {
     try {
@@ -407,6 +432,27 @@ export default function AdminOrders() {
     })
   }, [orders, search])
 
+  useEffect(() => {
+    setPage(1)
+  }, [tab, search])
+
+  const paginateTab = tab !== 'preparing'
+  const totalPages = paginateTab
+    ? Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE))
+    : 1
+  const displayedOrders = useMemo(() => {
+    if (!paginateTab) return filteredOrders
+    const start = (page - 1) * ORDERS_PER_PAGE
+    return filteredOrders.slice(start, start + ORDERS_PER_PAGE)
+  }, [filteredOrders, page, paginateTab])
+
+  useEffect(() => {
+    if (!paginateTab) return
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [paginateTab, page, totalPages, filteredOrders.length])
+
   return (
     <div>
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
@@ -456,8 +502,9 @@ export default function AdminOrders() {
           No {tab} orders match “{search}”.
         </div>
       ) : (
+        <>
         <div className="d-flex flex-column gap-3">
-          {filteredOrders.map((o) => {
+          {displayedOrders.map((o) => {
             const remaining = (o.items ?? []).reduce(
               (s, it) => s + Math.max(0, it.quantity - (it.cancelled_quantity ?? 0)),
               0,
@@ -518,6 +565,30 @@ export default function AdminOrders() {
             )
           })}
         </div>
+        {paginateTab && filteredOrders.length > 0 && (
+          <div className="d-flex align-items-center justify-content-center gap-3 mt-3">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </button>
+            <span className="small text-muted">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   )
