@@ -396,6 +396,16 @@ if ($method === 'PUT') {
                     'INSERT INTO order_items (order_id, product_id, quantity, unit_price, paid_quantity)
                      VALUES (?, ?, ?, ?, 0)'
                 );
+                $findMergeable = $db->prepare(
+                    'SELECT id FROM order_items
+                     WHERE order_id = ? AND product_id = ?
+                       AND cancelled_quantity < quantity
+                     ORDER BY id ASC
+                     LIMIT 1'
+                );
+                $incrementQty = $db->prepare(
+                    'UPDATE order_items SET quantity = quantity + ? WHERE id = ? AND order_id = ?'
+                );
                 foreach ($newItems as $ni) {
                     $pid = (int)($ni['product_id'] ?? 0);
                     $qty = (int)($ni['quantity'] ?? 0);
@@ -405,7 +415,13 @@ if ($method === 'PUT') {
                     if (!isset($priceMap[$pid])) {
                         throw new RuntimeException("Product ID $pid not found");
                     }
-                    $insert->execute([$id, $pid, $qty, $priceMap[$pid]]);
+                    $findMergeable->execute([$id, $pid]);
+                    $existingId = $findMergeable->fetchColumn();
+                    if ($existingId !== false) {
+                        $incrementQty->execute([$qty, (int)$existingId, $id]);
+                    } else {
+                        $insert->execute([$id, $pid, $qty, $priceMap[$pid]]);
+                    }
                 }
             }
 
