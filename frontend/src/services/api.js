@@ -14,13 +14,56 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ── Global in-flight request counter (for TopProgressBar) ───────────────────
+
+let inFlightCount = 0
+const requestCountListeners = new Set()
+
+function emitRequestCountChange() {
+  requestCountListeners.forEach((listener) => listener())
+}
+
+export function incrementRequestCount() {
+  inFlightCount += 1
+  emitRequestCountChange()
+}
+
+export function decrementRequestCount() {
+  inFlightCount = Math.max(0, inFlightCount - 1)
+  emitRequestCountChange()
+}
+
+export function subscribeRequestCount(listener) {
+  requestCountListeners.add(listener)
+  return () => requestCountListeners.delete(listener)
+}
+
+export function getRequestCountSnapshot() {
+  return inFlightCount
+}
+
+api.interceptors.request.use(
+  (config) => {
+    incrementRequestCount()
+    return config
+  },
+  (error) => {
+    decrementRequestCount()
+    return Promise.reject(error)
+  },
+)
+
 // Global 401 handler: when the session has expired (e.g. cookie GC'd or
 // container restart wiped it), bounce the user to /login with a hint.
 // Skip the bootstrap call to /auth/me.php so the initial "am I logged in?"
 // probe stays silent.
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    decrementRequestCount()
+    return res
+  },
   (err) => {
+    decrementRequestCount()
     const status = err?.response?.status
     const url    = err?.config?.url || ''
     const isMe   = url.includes('/auth/me')

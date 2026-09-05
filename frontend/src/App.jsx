@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Login         from './pages/Login'
 import AdminLayout   from './pages/AdminLayout'
 import CashierLayout from './pages/CashierLayout'
+import TopProgressBar from './components/shared/TopProgressBar'
 
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth()
@@ -26,7 +27,13 @@ function RequireRole({ role, children }) {
 
 function RootRedirect() {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status" />
+      </div>
+    )
+  }
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={user.role === 'admin' ? '/admin' : '/cashier'} replace />
 }
@@ -35,6 +42,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <TopProgressBar />
         <Routes>
           <Route path="/"       element={<RootRedirect />} />
           <Route path="/login"  element={<Login />} />
