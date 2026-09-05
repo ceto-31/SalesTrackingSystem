@@ -8,6 +8,7 @@ frontend/dist/
 # User uploads — ephemeral, not tracked in git
 backend/uploads/products/*
 !backend/uploads/products/.gitkeep
+backend/uploads/sessions/
 
 # Security — never commit the debug tool
 backend/debug.php
