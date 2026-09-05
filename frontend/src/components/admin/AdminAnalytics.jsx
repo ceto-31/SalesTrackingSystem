@@ -130,10 +130,14 @@ export default function AdminAnalytics() {
     setError('')
     try {
       const { data: res } = await getAnalytics(refDate, mode)
+      if (!res || typeof res !== 'object' || Array.isArray(res) || !Array.isArray(res.chart_data)) {
+        throw new Error('Analytics API returned an invalid response')
+      }
       setData(res)
     } catch (err) {
       const status = err?.response?.status
-      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      const body   = err?.response?.data
+      const detail = (typeof body === 'object' && body?.error) || err?.message || 'Unknown error'
       setError(`Failed to load analytics. [${status ?? 'network'}] ${detail}`)
     } finally {
       setLoading(false)
@@ -144,23 +148,26 @@ export default function AdminAnalytics() {
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
+  const chartRows   = Array.isArray(data?.chart_data) ? data.chart_data : []
+  const topProducts = Array.isArray(data?.top_products) ? data.top_products : []
+
   const avgPerOrder = data && data.order_count > 0
     ? data.total_revenue / data.order_count
     : 0
 
-  const maxSold = data?.top_products?.[0]?.total_sold ?? 0
+  const maxSold = topProducts[0]?.total_sold ?? 0
 
   // ── Chart.js config ─────────────────────────────────────────────────────────
 
   const chartData = data ? {
-    labels: data.chart_data.map((d) => d.label),
+    labels: chartRows.map((d) => d.label),
     datasets: [{
       label: 'Revenue (₱)',
-      data: data.chart_data.map((d) => d.revenue),
+      data: chartRows.map((d) => d.revenue),
       borderColor: INDIGO,
       borderWidth: 2.5,
       pointBackgroundColor: INDIGO,
-      pointRadius: data.chart_data.length > 20 ? 2 : 4,
+      pointRadius: chartRows.length > 20 ? 2 : 4,
       pointHoverRadius: 6,
       tension: 0.4,
       fill: true,
@@ -343,7 +350,7 @@ export default function AdminAnalytics() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>Revenue Over Time</div>
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>Paid orders · {mode === 'week' ? '7 days' : `${data.chart_data.length} days`}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Paid orders · {mode === 'week' ? '7 days' : `${chartRows.length} days`}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: INDIGO }} />
@@ -366,13 +373,13 @@ export default function AdminAnalytics() {
               <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>by quantity sold · {data.period_label}</span>
             </div>
 
-            {data.top_products.length === 0 ? (
+            {topProducts.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#94a3b8', padding: '32px 0', fontSize: 14 }}>
                 <i className="bi bi-box" style={{ fontSize: 36, display: 'block', marginBottom: 8 }} />
                 No orders in this period.
               </div>
             ) : (
-              data.top_products.map((p, i) => (
+              topProducts.map((p, i) => (
                 <TopProductRow key={p.product_id} rank={i + 1} product={p} maxSold={maxSold} />
               ))
             )}
