@@ -1,6 +1,7 @@
 // Uniform product image — scale/center within a fixed aspect box.
 
 import React from 'react'
+import foodPlaceholderIcon from '../../assets/food-placeholder-icon.svg'
 
 /**
  * @param {object} props
@@ -24,7 +25,12 @@ export default function ProductImage({
     return (
       <div className={`${ratioClass} product-image-box product-image-box--empty ${roundClass} ${className}`.trim()}>
         <div className="product-image-placeholder">
-          <i className="bi bi-image text-muted" aria-hidden="true" />
+          <img
+            src={foodPlaceholderIcon}
+            alt=""
+            aria-hidden="true"
+            style={{ width: '60%', height: '60%', objectFit: 'contain' }}
+          />
         </div>
       </div>
     )
