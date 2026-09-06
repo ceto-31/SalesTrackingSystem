@@ -17,7 +17,7 @@ function getDB(): PDO
 
         $host    = $env('DB_HOST')   ?: $env('MYSQLHOST')     ?: $env('MYSQL_HOST')     ?: 'localhost';
         $port    = $env('DB_PORT')   ?: $env('MYSQLPORT')     ?: $env('MYSQL_PORT')     ?: '3306';
-        $dbname  = $env('DB_NAME')   ?: $env('MYSQLDATABASE') ?: $env('MYSQL_DATABASE') ?: 'railway';
+        $dbname  = $env('DB_NAME')   ?: $env('MYSQLDATABASE') ?: $env('MYSQL_DATABASE') ?: 'order_tracking_db';
         $user    = $env('DB_USER')   ?: $env('MYSQLUSER')     ?: $env('MYSQL_USER')     ?: 'root';
         $pass    = $env('DB_PASS')   ?: $env('MYSQLPASSWORD') ?: $env('MYSQL_PASSWORD') ?: '';
 
