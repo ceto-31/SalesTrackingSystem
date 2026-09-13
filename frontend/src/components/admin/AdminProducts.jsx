@@ -108,8 +108,8 @@ export default function AdminProducts() {
     }
   }
 
-  const handleSaved = () => {
-    setModal(null)
+  const handleSaved = ({ keepOpen = false } = {}) => {
+    if (!keepOpen) setModal(null)
     fetchProducts()
   }
 
