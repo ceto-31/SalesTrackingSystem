@@ -46,11 +46,7 @@ export default function AdminProducts() {
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return products
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.variety || '').toLowerCase().includes(q),
-    )
+    return products.filter((p) => p.name.toLowerCase().includes(q))
   }, [products, search])
 
   return (
@@ -68,7 +64,7 @@ export default function AdminProducts() {
             <input
               type="search"
               className="form-control"
-              placeholder="Search name or category…"
+              placeholder="Search product name…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search products"
