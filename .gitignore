@@ -4,6 +4,7 @@ backend/vendor/
 
 # Build output
 frontend/dist/
+frontend/dev-dist/
 
 # User uploads — ephemeral, not tracked in git
 backend/uploads/products/*
