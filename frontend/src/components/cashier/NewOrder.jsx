@@ -70,11 +70,7 @@ export default function NewOrder() {
       ? products
       : products.filter((p) => p.variety === filterVariety)
     if (q) {
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.variety || '').toLowerCase().includes(q),
-      )
+      list = list.filter((p) => p.name.toLowerCase().includes(q))
     }
     // Stable sort: ranked items first (by rank ASC), then the rest in original order.
     return [...list].sort((a, b) => {

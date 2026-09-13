@@ -143,11 +143,7 @@ export default function EditOrderModal({ order, onClose, onSaved }) {
       ? products
       : products.filter((p) => p.variety === filterVariety)
     if (q) {
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.variety || '').toLowerCase().includes(q),
-      )
+      list = list.filter((p) => p.name.toLowerCase().includes(q))
     }
     return list
   }, [products, filterVariety, search])
