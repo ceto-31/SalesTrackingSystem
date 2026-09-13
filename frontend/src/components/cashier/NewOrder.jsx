@@ -13,6 +13,46 @@ function fmtMoney(n) {
   return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 
+/** 0 = exact name match, 1 = starts with, 2 = contains only */
+function getNameMatchTier(name, q) {
+  const n = name.toLowerCase()
+  if (n === q) return 0
+  if (n.startsWith(q)) return 1
+  return 2
+}
+
+/** Last numeric token in search text, e.g. "fries bbq 50" → 50 */
+function extractPriceHint(searchText) {
+  const matches = searchText.match(/\d+(?:\.\d+)?/g)
+  if (!matches) return null
+  const hint = parseFloat(matches[matches.length - 1])
+  return Number.isNaN(hint) ? null : hint
+}
+
+function compareTopRanks(a, b, topRanks) {
+  const ra = topRanks[a.id]
+  const rb = topRanks[b.id]
+  if (ra && rb) return ra - rb
+  if (ra) return -1
+  if (rb) return 1
+  return 0
+}
+
+function compareBySearchRelevance(a, b, q, searchText, topRanks) {
+  const tierA = getNameMatchTier(a.name, q)
+  const tierB = getNameMatchTier(b.name, q)
+  if (tierA !== tierB) return tierA - tierB
+
+  const priceHint = extractPriceHint(searchText)
+  if (priceHint != null) {
+    const distA = Math.abs(Number(a.price) - priceHint)
+    const distB = Math.abs(Number(b.price) - priceHint)
+    if (distA !== distB) return distA - distB
+  }
+
+  return compareTopRanks(a, b, topRanks)
+}
+
 export default function NewOrder() {
   const [products,      setProducts]      = useState([])
   const [loading,       setLoading]       = useState(true)
@@ -72,14 +112,11 @@ export default function NewOrder() {
     if (q) {
       list = list.filter((p) => p.name.toLowerCase().includes(q))
     }
-    // Stable sort: ranked items first (by rank ASC), then the rest in original order.
+
+    const searchText = search.trim()
     return [...list].sort((a, b) => {
-      const ra = topRanks[a.id]
-      const rb = topRanks[b.id]
-      if (ra && rb) return ra - rb
-      if (ra) return -1
-      if (rb) return 1
-      return 0
+      if (!q) return compareTopRanks(a, b, topRanks)
+      return compareBySearchRelevance(a, b, q, searchText, topRanks)
     })
   }, [products, filterVariety, search, topRanks])
 
